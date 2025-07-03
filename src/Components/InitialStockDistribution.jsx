@@ -24,12 +24,23 @@ import {
   ArrowRight,
   Grid3X3,
   PieChart,
-  ShoppingCart
+  ShoppingCart,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  X,
+  Plus,
+  Minus,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
-// Mock API Service (same as before)
+// Mock API Service with proper async delays
 const apiService = {
   processCSVData: async (csvData) => {
+    // Add delay to simulate real API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     const lines = csvData.split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
     
@@ -79,6 +90,9 @@ const apiService = {
   },
 
   generateForecast: async (salesData, productCode) => {
+    // Add delay to simulate AI processing
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     const productSales = salesData.filter(sale => sale['Product Code'] === productCode);
     
     if (productSales.length === 0) {
@@ -125,6 +139,9 @@ const apiService = {
   },
 
   generateDistribution: async (salesData, productCode, forecast) => {
+    // Add delay to simulate distribution calculation
+    // await new Promise(resolve => setTimeout(resolve, 600));
+    
     const product = salesData.find(sale => sale['Product Code'] === productCode);
     
     if (!product || !forecast) {
@@ -168,13 +185,24 @@ const apiService = {
   }
 };
 
-// Loading Component
-function LoadingSpinner({ message = "Loading..." }) {
+// Loading Component with better animation
+function LoadingSpinner({ message = "Loading...", subMessage = "" }) {
   return (
     <div className="flex items-center justify-center p-8">
       <div className="text-center">
-        <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
-        <p className="text-gray-600">{message}</p>
+        <div className="relative">
+          <RefreshCw className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <div className="absolute inset-0 w-12 h-12 border-4 border-purple-200 rounded-full mx-auto animate-pulse"></div>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{message}</h3>
+        {subMessage && <p className="text-sm text-gray-600">{subMessage}</p>}
+        <div className="mt-4 flex justify-center">
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -303,7 +331,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
 
   useEffect(() => {
     if (salesData.length > 0) {
-      // Process data for top 10 categories over 3 years
       const categoryYearData = {};
       
       salesData.forEach(sale => {
@@ -320,7 +347,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
         }
       });
 
-      // Get top 10 categories
       const topCategories = Object.entries(categoryYearData)
         .sort(([,a], [,b]) => b.total - a.total)
         .slice(0, 10)
@@ -334,7 +360,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Sales Analytics Dashboard</h2>
@@ -349,7 +374,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
         </button>
       </div>
 
-      {/* Chart */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="space-y-4">
           {chartData.map((item, index) => (
@@ -359,7 +383,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
                 <span className="text-sm text-gray-500">{item.total.toLocaleString()} sales</span>
               </div>
               
-              {/* Stacked Bar */}
               <div className="flex h-8 bg-gray-200 rounded-full overflow-hidden">
                 <div 
                   className="bg-blue-500 flex items-center justify-center text-xs text-white font-medium"
@@ -384,7 +407,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
                 </div>
               </div>
               
-              {/* Year breakdown */}
               <div className="flex justify-between text-xs text-gray-500">
                 <span>2022: {item[2022]}</span>
                 <span>2023: {item[2023]}</span>
@@ -394,7 +416,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
           ))}
         </div>
 
-        {/* Legend */}
         <div className="mt-6 flex justify-center space-x-6">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
@@ -411,7 +432,6 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
         </div>
       </div>
 
-      {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <div className="text-3xl font-bold text-blue-600">{salesData.length.toLocaleString()}</div>
@@ -453,7 +473,7 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
           };
         }
         acc[category].totalSales += 1;
-        acc[category].uniqueProducts.add(sale['Product Code']);
+        acc[category].uniqueProducts.add(sale['Product Name']);
         acc[category].years.add(new Date(sale['Sale Date']).getFullYear());
         return acc;
       }, {});
@@ -470,7 +490,6 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <button
@@ -485,7 +504,6 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
         </div>
       </div>
 
-      {/* Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {categories.map((category) => (
           <div
@@ -526,32 +544,107 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
   );
 }
 
-// Split Screen View Component
+// Split Screen View Component with Product-Level View
 function SplitScreenView({ 
   category, 
   products, 
   salesData, 
-  selectedProduct, 
-  onSelectProduct, 
+  selectedProducts,
+  onSelectProduct,
   onBackToCategories,
   distributions,
   forecasts,
   onGenerateDistribution,
-  isLoading 
+  isLoading,
+  isGeneratingDistribution
 }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSKULevel, setShowSKULevel] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState(new Set());
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
-  const filteredProducts = products.filter(product => 
-    product.category === category &&
-    (product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     product.productCode?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Monitor when distributions are generated to hide other products
+  useEffect(() => {
+    const hasAnyDistribution = selectedProducts.some(product => 
+      distributions[product.productCode]?.data?.length > 0
+    );
+    // Also check if we're currently generating distributions for selected products
+    const isGeneratingForSelected = isGeneratingDistribution && selectedProducts.length > 0;
+    
+    setShowOnlySelected(hasAnyDistribution || isGeneratingForSelected);
+  }, [selectedProducts, distributions, isGeneratingDistribution]);
+
+  // Group SKUs by Product Name to create product-level view
+  const groupedProducts = products
+    .filter(product => product.category === category)
+    .reduce((acc, sku) => {
+      const productName = sku.name;
+      if (!acc[productName]) {
+        acc[productName] = {
+          name: productName,
+          category: sku.category,
+          gender: sku.gender,
+          season: sku.season,
+          skus: [],
+          totalSales: 0,
+          totalQuantity: 0
+        };
+      }
+      acc[productName].skus.push(sku);
+      acc[productName].totalSales += sku.historicalSales;
+      acc[productName].totalQuantity += sku.totalQuantity;
+      return acc;
+    }, {});
+
+  const productsList = Object.values(groupedProducts);
+
+  const filteredProducts = productsList.filter(product => {
+    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // If distributions are generated or we're loading, only show selected products
+    if (showOnlySelected) {
+      const hasSelectedSKUs = product.skus.some(sku => 
+        selectedProducts.some(selected => selected.productCode === sku.productCode)
+      );
+      return matchesSearch && hasSelectedSKUs;
+    }
+    
+    return matchesSearch;
+  });
+
+  const filteredSKUs = products.filter(product => {
+    const matchesSearch = product.category === category &&
+      (product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       product.productCode?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // If distributions are generated or we're loading, only show selected SKUs
+    if (showOnlySelected) {
+      const isSelected = selectedProducts.some(selected => 
+        selected.productCode === product.productCode
+      );
+      return matchesSearch && isSelected;
+    }
+    
+    return matchesSearch;
+  });
+
+  const toggleProductExpansion = (productName) => {
+    const newExpanded = new Set(expandedProducts);
+    if (newExpanded.has(productName)) {
+      newExpanded.delete(productName);
+    } else {
+      newExpanded.add(productName);
+    }
+    setExpandedProducts(newExpanded);
+  };
+
+  const selectedProductCodes = selectedProducts.map(p => p.productCode);
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
+    <div className="h-full flex flex-col relative">
+      {/* Header with Multi-Select Actions */}
       <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <button
               onClick={onBackToCategories}
@@ -561,69 +654,362 @@ function SplitScreenView({
               Back to Categories
             </button>
             <h2 className="text-xl font-bold text-gray-900">{category}</h2>
-            <p className="text-sm text-gray-600">{filteredProducts.length} products</p>
+            <p className="text-sm text-gray-600">
+              {showSKULevel ? filteredSKUs.length : filteredProducts.length} {showSKULevel ? 'SKUs' : 'products'} 
+              {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected`}
+            </p>
           </div>
           
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
+          <div className="flex items-center space-x-3">
+            {/* Multi-Select Actions */}
+            {selectedProducts.length > 0 && (
+              <div className="flex items-center space-x-2 bg-purple-50 rounded-lg p-2">
+                <span className="text-sm font-medium text-purple-700">
+                  {selectedProducts.length} selected
+                </span>
+                <button
+                  onClick={() => onGenerateDistribution(selectedProducts.map(p => p.productCode))}
+                  disabled={isGeneratingDistribution}
+                  className="px-3 py-1 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                >
+                  {isGeneratingDistribution ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3 h-3 mr-1 inline" />
+                      Generate Distribution
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => onSelectProduct(null, 'clear')}
+                  className="p-1 text-gray-500 hover:text-gray-700"
+                  title="Clear selection"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Reset Button to Show All Products */}
+            {showOnlySelected && !isGeneratingDistribution && (
+              <button
+                onClick={() => {
+                  setShowOnlySelected(false);
+                  onSelectProduct(null, 'clear');
+                }}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                <Eye className="w-4 h-4 mr-1 inline" />
+                Show All Products
+              </button>
+            )}
+
+            {/* View Toggle */}
+            <button
+              onClick={() => setShowSKULevel(!showSKULevel)}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                showSKULevel
+                  ? 'bg-orange-100 text-orange-800'
+                  : 'bg-blue-100 text-blue-800'
+              }`}
+            >
+              {showSKULevel ? (
+                <>
+                  <EyeOff className="w-4 h-4 mr-1 inline" />
+                  Show Product Level
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4 mr-1 inline" />
+                  Show SKU Level
+                </>
+              )}
+            </button>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={`Search ${showSKULevel ? 'SKUs' : 'products'}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Split Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Half - Products */}
+        {/* Left Half - Products/SKUs */}
         <div className="w-1/2 border-r border-gray-200 overflow-y-auto p-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {filteredProducts.map(product => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onSelect={onSelectProduct}
-                isSelected={selectedProduct?.productCode === product.productCode}
-                showPredictions={true}
-                distributionStatus={distributions[product.productCode]?.status}
-                onGenerateDistribution={onGenerateDistribution}
-                forecast={forecasts[product.productCode]}
-                compact={true}
-              />
-            ))}
+            {showSKULevel ? (
+              // SKU Level View
+              filteredSKUs.map(sku => (
+                <ProductCard
+                  key={sku.id}
+                  product={sku}
+                  onSelect={onSelectProduct}
+                  isSelected={selectedProductCodes.includes(sku.productCode)}
+                  showPredictions={true}
+                  distributionStatus={distributions[sku.productCode]?.status}
+                  onGenerateDistribution={onGenerateDistribution}
+                  forecast={forecasts[sku.productCode]}
+                  compact={true}
+                  multiSelect={true}
+                />
+              ))
+            ) : (
+              // Product Level View
+              filteredProducts.map(product => (
+                <ProductLevelCard
+                  key={product.name}
+                  product={product}
+                  selectedProducts={selectedProducts}
+                  onSelectProduct={onSelectProduct}
+                  isExpanded={expandedProducts.has(product.name)}
+                  onToggleExpansion={() => toggleProductExpansion(product.name)}
+                  distributions={distributions}
+                  forecasts={forecasts}
+                />
+              ))
+            )}
           </div>
         </div>
 
         {/* Right Half - Distribution */}
         <div className="w-1/2 overflow-y-auto p-4">
-          {selectedProduct ? (
-            <DistributionPanel
-              product={selectedProduct}
-              distributions={distributions[selectedProduct.productCode]?.data}
-              forecast={forecasts[selectedProduct.productCode]}
-              onGenerateDistribution={() => onGenerateDistribution(selectedProduct.productCode)}
+          {selectedProducts.length > 0 ? (
+            <MultiDistributionPanel
+              selectedProducts={selectedProducts}
+              distributions={distributions}
+              forecasts={forecasts}
+              onGenerateDistribution={() => onGenerateDistribution(selectedProducts.map(p => p.productCode))}
               isLoading={isLoading}
+              isGeneratingDistribution={isGeneratingDistribution}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-center">
               <div>
                 <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Product</h3>
-                <p className="text-gray-600">Choose a product from the left to view distribution options</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Select Products</h3>
+                <p className="text-gray-600">
+                  Choose one or more products from the left to view distribution options
+                </p>
+                <div className="mt-4 text-sm text-gray-500">
+                  <p>💡 Tip: You can select multiple products for batch distribution</p>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Full Screen Loading Overlay for Distribution Generation */}
+      {isGeneratingDistribution && selectedProducts.length > 0 && (
+        <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-8 text-center border border-gray-200 max-w-md mx-4">
+            <div className="relative mb-6">
+              <RefreshCw className="w-16 h-16 animate-spin text-purple-600 mx-auto" />
+              <div className="absolute inset-0 w-16 h-16 border-4 border-purple-200 rounded-full mx-auto animate-pulse"></div>
+            </div>
+            
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Generating AI Distribution
+            </h3>
+            
+            <p className="text-sm text-gray-600 mb-2">
+              Processing {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''}
+            </p>
+            
+            <p className="text-xs text-gray-500 mb-6">
+              AI is analyzing sales patterns, seasonality trends, and optimizing stock allocation for maximum performance
+            </p>
+            
+            <div className="flex justify-center mb-4">
+              <div className="flex space-x-1">
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+              </div>
+            </div>
+            
+            <div className="text-xs text-purple-600 font-medium">
+              Please wait, this may take a few moments...
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Compact Product Card Component
+// Product Level Card Component
+function ProductLevelCard({ 
+  product, 
+  selectedProducts, 
+  onSelectProduct, 
+  isExpanded, 
+  onToggleExpansion,
+  distributions,
+  forecasts 
+}) {
+  const selectedProductCodes = selectedProducts.map(p => p.productCode);
+  const selectedSKUs = product.skus.filter(sku => selectedProductCodes.includes(sku.productCode));
+  const allSKUsSelected = product.skus.length === selectedSKUs.length;
+  const someSKUsSelected = selectedSKUs.length > 0;
+
+  const handleProductSelect = () => {
+    if (allSKUsSelected) {
+      // Deselect all SKUs
+      product.skus.forEach(sku => {
+        onSelectProduct(sku, 'remove');
+      });
+    } else {
+      // Select all SKUs
+      product.skus.forEach(sku => {
+        if (!selectedProductCodes.includes(sku.productCode)) {
+          onSelectProduct(sku, 'add');
+        }
+      });
+    }
+  };
+
+  const avgConfidence = product.skus.reduce((sum, sku) => {
+    const forecast = forecasts[sku.productCode];
+    return sum + (forecast?.confidence || 0);
+  }, 0) / product.skus.length;
+
+  const totalPredictedDemand = product.skus.reduce((sum, sku) => {
+    const forecast = forecasts[sku.productCode];
+    return sum + (forecast?.predictedDemand || 0);
+  }, 0);
+
+  return (
+    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-2 border-transparent hover:border-purple-300 p-4">
+      <div className="space-y-3">
+        {/* Header with Multi-Select Checkbox */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-3">
+            <button
+              onClick={handleProductSelect}
+              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                allSKUsSelected
+                  ? 'bg-purple-600 border-purple-600 text-white'
+                  : someSKUsSelected
+                  ? 'bg-purple-100 border-purple-400'
+                  : 'border-gray-300 hover:border-purple-400'
+              }`}
+            >
+              {allSKUsSelected && <Check className="w-3 h-3" />}
+              {someSKUsSelected && !allSKUsSelected && <Minus className="w-3 h-3 text-purple-600" />}
+            </button>
+            
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">{product.name}</h3>
+              <p className="text-sm text-gray-500">{product.skus.length} SKUs available</p>
+            </div>
+          </div>
+          
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            {product.category}
+          </span>
+        </div>
+
+        {/* Product Summary */}
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total Sales:</span>
+            <span className="font-medium">{product.totalSales}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Predicted:</span>
+            <span className="font-medium">{totalPredictedDemand}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">SKUs:</span>
+            <span className="font-medium">{product.skus.length}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Avg Confidence:</span>
+            <span className="font-medium">{Math.round(avgConfidence)}%</span>
+          </div>
+        </div>
+
+        {/* Selection Status */}
+        {someSKUsSelected && (
+          <div className="p-2 bg-purple-50 rounded-lg">
+            <p className="text-sm text-purple-700">
+              {selectedSKUs.length} of {product.skus.length} SKUs selected
+            </p>
+          </div>
+        )}
+
+        {/* Expand/Collapse SKUs */}
+        <button
+          onClick={onToggleExpansion}
+          className="w-full flex items-center justify-center py-2 text-sm font-medium text-gray-600 hover:text-gray-900 border-t border-gray-200"
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUp className="w-4 h-4 mr-1" />
+              Hide SKUs
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-4 h-4 mr-1" />
+              Show SKUs
+            </>
+          )}
+        </button>
+
+        {/* Expanded SKU List */}
+        {isExpanded && (
+          <div className="space-y-2 border-t border-gray-200 pt-3">
+            {product.skus.map(sku => (
+              <div
+                key={sku.productCode}
+                className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                  selectedProductCodes.includes(sku.productCode)
+                    ? 'border-purple-300 bg-purple-50'
+                    : 'border-gray-200 hover:border-purple-200'
+                }`}
+                onClick={() => onSelectProduct(sku, 
+                  selectedProductCodes.includes(sku.productCode) ? 'remove' : 'add'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{sku.productCode}</p>
+                    <p className="text-xs text-gray-500">
+                      {sku.attributes.size} • {sku.attributes.color}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">{sku.historicalSales} sales</p>
+                    {forecasts[sku.productCode] && (
+                      <p className="text-xs text-gray-500">
+                        Pred: {forecasts[sku.productCode].predictedDemand}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Enhanced Product Card Component with Multi-Select
 function ProductCard({ 
   product, 
   onSelect, 
@@ -632,7 +1018,8 @@ function ProductCard({
   distributionStatus, 
   onGenerateDistribution,
   forecast,
-  compact = false 
+  compact = false,
+  multiSelect = false 
 }) {
   const riskColors = {
     LOW: 'text-green-600 bg-green-100',
@@ -640,21 +1027,44 @@ function ProductCard({
     HIGH: 'text-red-600 bg-red-100'
   };
 
+  const handleClick = () => {
+    if (multiSelect) {
+      onSelect(product, isSelected ? 'remove' : 'add');
+    } else {
+      onSelect(product);
+    }
+  };
+
   return (
     <div
       className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border-2 ${
-        isSelected ? 'border-purple-500 ring-2 ring-purple-200' : 'border-transparent'
+        isSelected ? 'border-purple-500 ring-2 ring-purple-200 bg-purple-50' : 'border-transparent'
       } ${compact ? 'p-4' : 'p-6'}`}
-      onClick={() => onSelect(product)}
+      onClick={handleClick}
     >
       <div className="space-y-3">
         <div className="flex justify-between items-start">
-          <div>
-            <h3 className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-gray-900`}>
-              {product.name}
-            </h3>
-            <p className="text-sm text-gray-500">{product.productCode}</p>
+          <div className="flex items-start space-x-3">
+            {multiSelect && (
+              <div
+                className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                  isSelected
+                    ? 'bg-purple-600 border-purple-600 text-white'
+                    : 'border-gray-300'
+                }`}
+              >
+                {isSelected && <Check className="w-3 h-3" />}
+              </div>
+            )}
+            
+            <div>
+              <h3 className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-gray-900`}>
+                {product.name}
+              </h3>
+              <p className="text-sm text-gray-500">{product.productCode}</p>
+            </div>
           </div>
+          
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
             {product.category}
           </span>
@@ -711,8 +1121,8 @@ function ProductCard({
   );
 }
 
-// Distribution Panel Component
-function DistributionPanel({ product, distributions, forecast, onGenerateDistribution, isLoading }) {
+// Multi Distribution Panel Component
+function MultiDistributionPanel({ selectedProducts, distributions, forecasts, onGenerateDistribution, isLoading, isGeneratingDistribution }) {
   const [isExporting, setIsExporting] = useState(false);
 
   const shop = {
@@ -722,22 +1132,32 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
     tier: "FLAGSHIP"
   };
 
+  const hasDistributions = selectedProducts.some(product => 
+    distributions[product.productCode]?.data?.length > 0
+  );
+
+  const allDistributions = selectedProducts.reduce((acc, product) => {
+    const productDistributions = distributions[product.productCode]?.data || [];
+    return [...acc, ...productDistributions];
+  }, []);
+
+  const totalAllocated = allDistributions.reduce((sum, dist) => sum + dist.allocatedQuantity, 0);
+
   const handleExport = async () => {
     try {
       setIsExporting(true);
       
       const exportData = {
-        productCode: product.productCode,
-        productName: product.name,
-        shop: shop,
-        totalAllocated: distributions?.reduce((sum, dist) => sum + dist.allocatedQuantity, 0) || 0,
-        forecast: forecast,
-        distributions: distributions?.map(dist => ({
-          variation: `${dist.variation.size} - ${dist.variation.color}`,
-          quantity: dist.allocatedQuantity,
-          reasoning: dist.reasoning
-        })) || [],
         exportDate: new Date().toISOString(),
+        shop: shop,
+        selectedProducts: selectedProducts.length,
+        totalAllocated: totalAllocated,
+        products: selectedProducts.map(product => ({
+          productCode: product.productCode,
+          productName: product.name,
+          forecast: forecasts[product.productCode],
+          distributions: distributions[product.productCode]?.data || []
+        })),
         modelVersion: 'Sequential_Forecasting_v1.0'
       };
 
@@ -747,7 +1167,7 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `distribution_${product.productCode}_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `multi_distribution_${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -760,39 +1180,50 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
     }
   };
 
-  if (!distributions || distributions.length === 0) {
+  if (!hasDistributions) {
     return (
       <div className="h-full flex flex-col">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-4">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Distribution Plan: {product.name}
+            Multi-Product Distribution Plan
           </h3>
           
-          {forecast && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-3">AI Forecast</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="font-semibold text-blue-900">{forecast.predictedDemand}</div>
-                  <div className="text-blue-700">Predicted Demand</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-semibold text-blue-900">{forecast.confidence}%</div>
-                  <div className="text-blue-700">Confidence</div>
-                </div>
-              </div>
+          <div className="mb-6">
+            <h4 className="font-medium text-gray-700 mb-3">Selected Products ({selectedProducts.length})</h4>
+            <div className="space-y-2">
+              {selectedProducts.map(product => {
+                const forecast = forecasts[product.productCode];
+                return (
+                  <div key={product.productCode} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium text-gray-900">{product.name}</div>
+                      <div className="text-sm text-gray-500">{product.productCode}</div>
+                    </div>
+                    <div className="text-right">
+                      {forecast ? (
+                        <>
+                          <div className="font-semibold text-purple-600">{forecast.predictedDemand}</div>
+                          <div className="text-xs text-gray-500">{forecast.confidence}% confidence</div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-gray-400">No forecast</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           <div className="text-center py-8">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No distribution generated yet</p>
+            <p className="text-gray-500 mb-4">No distributions generated yet</p>
             <button
               onClick={onGenerateDistribution}
-              disabled={isLoading}
+              disabled={isGeneratingDistribution}
               className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
             >
-              {isLoading ? (
+              {isGeneratingDistribution ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
                   Generating...
@@ -800,7 +1231,7 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
               ) : (
                 <>
                   <Zap className="w-4 h-4 mr-2 inline" />
-                  Generate Smart Distribution
+                  Generate Distribution for All Products
                 </>
               )}
             </button>
@@ -810,17 +1241,49 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
     );
   }
 
-  const totalAllocated = distributions.reduce((sum, dist) => sum + dist.allocatedQuantity, 0);
-
   return (
     <div className="h-full flex flex-col">
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-gray-900">
-            Distribution Plan: {product.name}
+            Multi-Product Distribution Plan
           </h3>
           <div className="text-sm text-gray-500">
-            Total: {totalAllocated} units
+            Total: {totalAllocated} units across {selectedProducts.length} SKU's
+          </div>
+        </div>
+
+        {/* Action Buttons - Moved to Top */}
+        <div className="flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-lg border">
+          <div className="text-sm text-gray-600">
+            <Brain className="w-4 h-4 inline mr-1" />
+            AI-optimized multi-product distribution
+          </div>
+
+          <div className="flex space-x-3">
+            <button 
+              onClick={onGenerateDistribution}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Regenerate All
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            >
+              {isExporting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2 inline" />
+                  Export All to POS
+                </>
+              )}
+            </button>
           </div>
         </div>
 
@@ -836,98 +1299,51 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
             </span>
           </div>
 
-          {/* Variations */}
-          <div className="space-y-3">
-            <h5 className="font-medium text-gray-700">Variation Breakdown</h5>
-            <div className="space-y-2">
-              {distributions.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-900">
-                      {item.variation.size} - {item.variation.color}
+          {/* Products Summary - Scrollable Area */}
+          <div className="space-y-4">
+            <h5 className="font-medium text-gray-700">Distribution Summary</h5>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+              {selectedProducts.map(product => {
+                const productDistributions = distributions[product.productCode]?.data || [];
+                const productTotal = productDistributions.reduce((sum, dist) => sum + dist.allocatedQuantity, 0);
+                const forecast = forecasts[product.productCode];
+                
+                return (
+                  <div key={product.productCode} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-medium text-gray-900">{product.name}</div>
+                        <div className="text-sm text-gray-500">{product.productCode}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-semibold text-purple-600">{productTotal}</div>
+                        <div className="text-xs text-gray-500">units allocated</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {item.variation.sizeCode} / {item.variation.colorCode}
-                    </div>
+                    
+                    {productDistributions.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        {productDistributions.length} variations distributed
+                      </div>
+                    )}
+                    
+                    {forecast && (
+                      <div className="mt-2 flex justify-between text-xs text-gray-500">
+                        <span>Predicted: {forecast.predictedDemand}</span>
+                        <span>Confidence: {forecast.confidence}%</span>
+                        <span className={`px-2 py-1 rounded-full ${
+                          forecast.riskLevel === 'LOW' ? 'bg-green-100 text-green-700' :
+                          forecast.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {forecast.riskLevel}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold text-purple-600">
-                      {item.allocatedQuantity}
-                    </div>
-                    <div className="text-xs text-gray-500">units</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </div>
-        </div>
-
-        {/* Forecast Summary */}
-        {forecast && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-            <h5 className="font-medium text-blue-900 mb-3">AI Forecast Summary</h5>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">{forecast.predictedDemand}</div>
-                <div className="text-blue-700">Predicted Demand</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">{forecast.confidence}%</div>
-                <div className="text-blue-700">Confidence</div>
-              </div>
-              <div className="text-center">
-                <div className={`font-semibold ${forecast.riskLevel === 'LOW' ? 'text-green-600' : 
-                  forecast.riskLevel === 'MEDIUM' ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {forecast.riskLevel}
-                </div>
-                <div className="text-blue-700">Risk Level</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">{totalAllocated}</div>
-                <div className="text-blue-700">Total Allocated</div>
-              </div>
-            </div>
-            
-            {forecast.reasoning && (
-              <div className="mt-3 p-2 bg-white rounded text-xs text-gray-600">
-                <Brain className="w-3 h-3 inline mr-1" />
-                {forecast.reasoning}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            <Brain className="w-4 h-4 inline mr-1" />
-            AI-optimized distribution
-          </div>
-
-          <div className="flex space-x-3">
-            <button 
-              onClick={onGenerateDistribution}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Regenerate
-            </button>
-            <button
-              onClick={handleExport}
-              disabled={isExporting}
-              className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              {isExporting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2 inline" />
-                  Export to POS
-                </>
-              )}
-            </button>
           </div>
         </div>
       </div>
@@ -938,11 +1354,11 @@ function DistributionPanel({ product, distributions, forecast, onGenerateDistrib
 // Main Component
 function InitialStockDistribution() {
   // View State Management
-  const [currentView, setCurrentView] = useState('upload'); // 'upload', 'analytics', 'categories', 'split'
+  const [currentView, setCurrentView] = useState('upload');
   const [selectedCategory, setSelectedCategory] = useState(null);
   
   // Data State Management
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProducts, setSelectedProducts] = useState([]);
   const [products, setProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [distributions, setDistributions] = useState({});
@@ -950,6 +1366,7 @@ function InitialStockDistribution() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [modelStatus, setModelStatus] = useState('NOT_READY');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingDistribution, setIsGeneratingDistribution] = useState(false);
   const [error, setError] = useState(null);
 
   const handleDataLoad = async (csvData) => {
@@ -969,7 +1386,7 @@ function InitialStockDistribution() {
       setSalesData(processedSalesData);
       setIsDataLoaded(true);
       setModelStatus('READY');
-      setCurrentView('analytics'); // Move to analytics view after upload
+      setCurrentView('analytics');
 
       console.log(`Loaded ${processedProducts.length} products and ${processedSalesData.length} sales records`);
 
@@ -981,37 +1398,75 @@ function InitialStockDistribution() {
     }
   };
 
-  const handleGenerateDistribution = async (productCode) => {
+  const handleGenerateDistribution = async (productCodes) => {
+    console.log('🚀 Generate Distribution clicked!', productCodes);
+    
     try {
-      setIsLoading(true);
+      // Set loading state IMMEDIATELY for instant feedback
+      setIsGeneratingDistribution(true);
+      console.log('✅ Loading state set to true');
       setError(null);
 
-      const forecast = await apiService.generateForecast(salesData, productCode);
-      setForecasts(prev => ({ ...prev, [productCode]: forecast }));
+      // Handle both single product and multi-product generation
+      const codes = Array.isArray(productCodes) ? productCodes : [productCodes];
+      console.log(`📦 Processing ${codes.length} products...`);
 
-      const distribution = await apiService.generateDistribution(salesData, productCode, forecast);
+      for (const productCode of codes) {
+        console.log(`🔄 Generating forecast for ${productCode}...`);
+        const forecast = await apiService.generateForecast(salesData, productCode);
+        setForecasts(prev => ({ ...prev, [productCode]: forecast }));
 
-      setDistributions(prev => ({
-        ...prev,
-        [productCode]: {
-          data: distribution,
-          status: 'COMPLETE',
-          forecast: forecast
-        }
-      }));
+        console.log(`📊 Generating distribution for ${productCode}...`);
+        const distribution = await apiService.generateDistribution(salesData, productCode, forecast);
 
-      console.log(`Generated distribution for ${productCode}:`, { forecast, distribution });
+        setDistributions(prev => ({
+          ...prev,
+          [productCode]: {
+            data: distribution,
+            status: 'COMPLETE',
+            forecast: forecast
+          }
+        }));
+      }
+
+      console.log(`✅ Generated distribution for ${codes.length} products`);
 
     } catch (error) {
+      console.error('❌ Distribution generation failed:', error);
       setError(`Distribution generation failed: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      console.log('🏁 Setting loading state to false');
+      setIsGeneratingDistribution(false);
     }
   };
 
-  const handleProductSelect = async (product) => {
-    setSelectedProduct(product);
+  const handleProductSelect = async (product, action = 'toggle') => {
+    if (action === 'clear') {
+      setSelectedProducts([]);
+      return;
+    }
 
+    if (!product) return;
+
+    setSelectedProducts(prev => {
+      const isCurrentlySelected = prev.some(p => p.productCode === product.productCode);
+      
+      if (action === 'add' && !isCurrentlySelected) {
+        return [...prev, product];
+      } else if (action === 'remove' && isCurrentlySelected) {
+        return prev.filter(p => p.productCode !== product.productCode);
+      } else if (action === 'toggle') {
+        if (isCurrentlySelected) {
+          return prev.filter(p => p.productCode !== product.productCode);
+        } else {
+          return [...prev, product];
+        }
+      }
+      
+      return prev;
+    });
+
+    // Generate forecast if not already generated
     if (!forecasts[product.productCode] && salesData.length > 0) {
       try {
         const forecast = await apiService.generateForecast(salesData, product.productCode);
@@ -1028,19 +1483,19 @@ function InitialStockDistribution() {
 
   const handleSelectCategory = (category) => {
     setSelectedCategory(category);
-    setSelectedProduct(null);
+    setSelectedProducts([]);
     setCurrentView('split');
   };
 
   const handleBackToAnalytics = () => {
     setCurrentView('analytics');
     setSelectedCategory(null);
-    setSelectedProduct(null);
+    setSelectedProducts([]);
   };
 
   const handleBackToCategories = () => {
     setCurrentView('categories');
-    setSelectedProduct(null);
+    setSelectedProducts([]);
   };
 
   // Render based on current view
@@ -1059,7 +1514,12 @@ function InitialStockDistribution() {
               />
             )}
 
-            {isLoading && <LoadingSpinner message="Processing your sales data..." />}
+            {isLoading && (
+              <LoadingSpinner 
+                message="Processing Your Sales Data" 
+                subMessage="Training AI model and extracting product insights..."
+              />
+            )}
 
             {!isLoading && !isDataLoaded && !error && (
               <div className="text-center py-12">
@@ -1110,13 +1570,14 @@ function InitialStockDistribution() {
             category={selectedCategory}
             products={products}
             salesData={salesData}
-            selectedProduct={selectedProduct}
+            selectedProducts={selectedProducts}
             onSelectProduct={handleProductSelect}
             onBackToCategories={handleBackToCategories}
             distributions={distributions}
             forecasts={forecasts}
             onGenerateDistribution={handleGenerateDistribution}
             isLoading={isLoading}
+            isGeneratingDistribution={isGeneratingDistribution}
           />
         );
 
