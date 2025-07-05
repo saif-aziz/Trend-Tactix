@@ -35,17 +35,87 @@ import {
   EyeOff
 } from 'lucide-react';
 
-// Mock API Service with proper async delays
+// Updated API Service for new training/prediction workflow
 const apiService = {
+  loadTrainingData: async (salesFile, inventoryFile = null) => {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const formData = new FormData();
+    formData.append('sales_file', salesFile);
+    if (inventoryFile) {
+      formData.append('inventory_file', inventoryFile);
+    }
+    
+    const response = await fetch('http://localhost:5000/api/load-training-data', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to load training data');
+    }
+    
+    return await response.json();
+  },
+
+  loadPredictionData: async (productsFile) => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const formData = new FormData();
+    formData.append('products_file', productsFile);
+    
+    const response = await fetch('http://localhost:5000/api/load-prediction-data', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to load prediction data');
+    }
+    
+    return await response.json();
+  },
+
+  trainModel: async (trainConfig = {}) => {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const response = await fetch('http://localhost:5000/api/train-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(trainConfig)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Model training failed');
+    }
+    
+    return await response.json();
+  },
+
+  generatePredictions: async (productCodes = []) => {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const response = await fetch('http://localhost:5000/api/generate-predictions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_codes: productCodes })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Prediction generation failed');
+    }
+    
+    return await response.json();
+  },
+
   processCSVData: async (csvData) => {
-    // Add delay to simulate real API call
+    // Fallback for backward compatibility
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     const lines = csvData.split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
     
     const products = {};
-    const salesData = [];
     
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
@@ -57,9 +127,7 @@ const apiService = {
         row[header] = values[index];
       });
       
-      if (row['Product Code'] && row['Sale Date']) {
-        salesData.push(row);
-        
+      if (row['Product Code']) {
         const productCode = row['Product Code'];
         if (!products[productCode]) {
           products[productCode] = {
@@ -69,119 +137,60 @@ const apiService = {
             category: row['Category'] || 'Unknown',
             gender: row['Gender'] || 'Unisex',
             season: row['Season'] || 'Unknown',
-            sizeName: row['Size Name'] || 'OS',
-            sizeCode: row['Size Code'] || 'OS',
-            colorName: row['Color Name'] || 'Default',
-            colorCode: row['Color Code'] || 'DEF',
             attributes: {
               size: row['Size Name'] || 'OS',
               color: row['Color Name'] || 'Default',
               gender: row['Gender'] || 'Unisex'
             },
             totalQuantity: 0,
-            historicalSales: 0
-          };
+            historicalSales: 0,
+            predictedDemand: 0
+          };handleTrainingDataUpload
         }
-        products[productCode].historicalSales += 1;
       }
-    }
+    }handleTrainingDataUpload
     
-    return { products: Object.values(products), salesData };
+    return { products: Object.values(products) };
   },
 
-  generateForecast: async (salesData, productCode) => {
-    // Add delay to simulate AI processing
+  generateForecast: async (productCode, productData) => {
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    const productSales = salesData.filter(sale => sale['Product Code'] === productCode);
+    // Use the new API endpoint
+    const response = await fetch('http://localhost:5000/api/generate-distribution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productCode })
+    });
     
-    if (productSales.length === 0) {
+    if (!response.ok) {
       return {
         predictedDemand: 0,
         confidence: 0,
         riskLevel: 'HIGH',
-        reasoning: 'No historical sales data available'
+        reasoning: 'Forecast generation failed'
       };
     }
-
-    const salesByMonth = {};
-    productSales.forEach(sale => {
-      const month = new Date(sale['Sale Date']).getMonth();
-      salesByMonth[month] = (salesByMonth[month] || 0) + 1;
-    });
-
-    const totalSales = productSales.length;
-    const dateRange = productSales.map(s => new Date(s['Sale Date']));
-    const minDate = new Date(Math.min(...dateRange));
-    const maxDate = new Date(Math.max(...dateRange));
-    const monthsSpan = Math.max(1, (maxDate - minDate) / (1000 * 60 * 60 * 24 * 30));
     
-    const velocity = totalSales / monthsSpan;
-    const predictedDemand = Math.round(velocity * 3);
-    
-    const avgMonthlySales = Object.values(salesByMonth).reduce((a, b) => a + b, 0) / Object.keys(salesByMonth).length;
-    const variance = Object.values(salesByMonth).reduce((sum, sales) => sum + Math.pow(sales - avgMonthlySales, 2), 0) / Object.keys(salesByMonth).length;
-    const coefficient_of_variation = Math.sqrt(variance) / avgMonthlySales;
-    
-    let confidence = Math.max(0, Math.min(100, 100 - (coefficient_of_variation * 50)));
-    if (totalSales < 5) confidence *= 0.5;
-    
-    let riskLevel = 'LOW';
-    if (confidence < 30 || totalSales < 3) riskLevel = 'HIGH';
-    else if (confidence < 60 || totalSales < 10) riskLevel = 'MEDIUM';
-    
-    return {
-      predictedDemand: Math.max(1, predictedDemand),
-      confidence: Math.round(confidence),
-      riskLevel,
-      reasoning: `Based on ${totalSales} historical sales over ${monthsSpan.toFixed(1)} months. Average velocity: ${velocity.toFixed(1)} sales/month.`
-    };
+    const result = await response.json();
+    return result.forecast;
   },
 
-  generateDistribution: async (salesData, productCode, forecast) => {
-    // Add delay to simulate distribution calculation
-    // await new Promise(resolve => setTimeout(resolve, 600));
+  generateDistribution: async (productCode, forecast) => {
+    await new Promise(resolve => setTimeout(resolve, 600));
     
-    const product = salesData.find(sale => sale['Product Code'] === productCode);
+    const response = await fetch('http://localhost:5000/api/generate-distribution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productCode })
+    });
     
-    if (!product || !forecast) {
+    if (!response.ok) {
       return [];
     }
-
-    const variations = salesData
-      .filter(sale => sale['Product Code'] === productCode)
-      .reduce((acc, sale) => {
-        const key = `${sale['Size Code']}-${sale['Color Code']}`;
-        if (!acc[key]) {
-          acc[key] = {
-            size: sale['Size Name'] || sale['Size Code'],
-            color: sale['Color Name'] || sale['Color Code'],
-            sizeCode: sale['Size Code'],
-            colorCode: sale['Color Code'],
-            salesCount: 0
-          };
-        }
-        acc[key].salesCount += 1;
-        return acc;
-      }, {});
-
-    const variationList = Object.values(variations);
-    const totalVariationSales = variationList.reduce((sum, v) => sum + v.salesCount, 0);
-
-    const distributions = variationList.map(variation => {
-      const proportion = totalVariationSales > 0 ? variation.salesCount / totalVariationSales : 1 / variationList.length;
-      const allocatedQuantity = Math.max(1, Math.round(forecast.predictedDemand * proportion));
-      
-      return {
-        shopId: 1,
-        productCode: productCode,
-        variation: variation,
-        allocatedQuantity: allocatedQuantity,
-        reasoning: `${(proportion * 100).toFixed(1)}% allocation based on historical sales performance (${variation.salesCount} sales)`
-      };
-    });
-
-    return distributions;
+    
+    const result = await response.json();
+    return result.distribution;
   }
 };
 
@@ -249,7 +258,7 @@ function ConnectionStatus({ isDataLoaded, modelStatus }) {
       <div className="flex items-center space-x-2">
         <div className={`w-3 h-3 rounded-full ${
           modelStatus === 'READY' ? 'bg-green-500' :
-          modelStatus === 'PROCESSING' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'
+          modelStatus === 'PROCESSING' || modelStatus === 'TRAINING' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'
         }`}></div>
         <span className="text-sm text-gray-600">
           Model: {modelStatus === 'READY' ? 'Ready' : modelStatus || 'Not Ready'}
@@ -259,111 +268,206 @@ function ConnectionStatus({ isDataLoaded, modelStatus }) {
   );
 }
 
-// Data Upload Component
-function DataUploadSection({ onDataLoad, isLoading }) {
+// Multi-Stage Data Upload Component
+function DataUploadSection({ onDataLoad, isLoading, currentStage, onStageComplete }) {
   const [dragOver, setDragOver] = useState(false);
+  const [trainingDataLoaded, setTrainingDataLoaded] = useState(false);
+  const [predictionDataLoaded, setPredictionDataLoaded] = useState(false);
+  const [modelTrained, setModelTrained] = useState(false);
 
-  const handleFileUpload = async (file) => {
-    if (file && file.type === 'text/csv') {
-      const text = await file.text();
-      await onDataLoad(text);
-    } else {
-      alert('Please upload a CSV file');
+  const handleTrainingDataUpload = async (salesFile, inventoryFile = null) => {
+    try {
+      console.log('🚀 Starting upload...', salesFile.name);
+      console.log('📝 About to call API...');
+      
+      const result = await apiService.loadTrainingData(salesFile, inventoryFile);
+      
+      console.log('✅ Upload successful:', result);
+      setTrainingDataLoaded(true);
+      onStageComplete('training', result);
+    } catch (error) {
+      console.error('❌ Upload failed:', error);
+      alert(`Training data upload failed: ${error.message}`);
     }
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    handleFileUpload(file);
+  const handlePredictionDataUpload = async (file) => {
+    try {
+      const result = await apiService.loadPredictionData(file);
+      setPredictionDataLoaded(true);
+      onStageComplete('prediction', result);
+    } catch (error) {
+      alert(`Prediction data upload failed: ${error.message}`);
+    }
   };
 
-  const handleFileInput = (e) => {
-    const file = e.target.files[0];
-    handleFileUpload(file);
+  const handleModelTraining = async () => {
+    try {
+      const result = await apiService.trainModel();
+      setModelTrained(true);
+      onStageComplete('training_complete', result);
+    } catch (error) {
+      alert(`Model training failed: ${error.message}`);
+    }
+  };
+
+  const handleFileUpload = async (files, type) => {
+    if (type === 'training') {
+      const salesFile = files[0];
+      const inventoryFile = files[1] || null;
+      if (salesFile && salesFile.type === 'text/csv') {
+        await handleTrainingDataUpload(salesFile, inventoryFile);
+      } else {
+        alert('Please upload CSV files');
+      }
+    } else if (type === 'prediction') {
+      const file = files[0];
+      if (file && file.type === 'text/csv') {
+        await handlePredictionDataUpload(file);
+      } else {
+        alert('Please upload a CSV file');
+      }
+    }
   };
 
   return (
-    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <Database className="w-5 h-5 text-blue-600 mr-2" />
-          <div>
-            <h3 className="font-medium text-blue-900">Historical Sales Data</h3>
-            <p className="text-sm text-blue-700">Upload your sales CSV file to train the AI forecasting model</p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <div
-            className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-              dragOver ? 'border-blue-500 bg-blue-100' : 'border-gray-300'
-            }`}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-          >
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleFileInput}
-              className="hidden"
-              id="file-upload"
-              disabled={isLoading}
-            />
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">
-                {isLoading ? 'Processing...' : 'Drop CSV file here or click to upload'}
+    <div className="mb-6 space-y-4">
+      {/* Stage 1: Training Data */}
+      <div className={`p-4 rounded-lg border ${trainingDataLoaded ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Database className={`w-5 h-5 mr-2 ${trainingDataLoaded ? 'text-green-600' : 'text-blue-600'}`} />
+            <div>
+              <h3 className={`font-medium ${trainingDataLoaded ? 'text-green-900' : 'text-blue-900'}`}>
+                Step 1: Training Data {trainingDataLoaded && '✓'}
+              </h3>
+              <p className={`text-sm ${trainingDataLoaded ? 'text-green-700' : 'text-blue-700'}`}>
+                Upload historical sales data (required) and inventory data (optional)
               </p>
-            </label>
+            </div>
           </div>
+
+          {!trainingDataLoaded && (
+            <div className="flex items-center space-x-3">
+              <input
+                type="file"
+                accept=".csv"
+                multiple
+                onChange={(e) => handleFileUpload(Array.from(e.target.files), 'training')}
+                className="hidden"
+                id="training-upload"
+                disabled={isLoading}
+              />
+              <label htmlFor="training-upload" className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                {isLoading ? 'Processing...' : 'Upload Training Data'}
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stage 2: Prediction Data */}
+      <div className={`p-4 rounded-lg border ${predictionDataLoaded ? 'bg-green-50 border-green-200' : trainingDataLoaded ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Package className={`w-5 h-5 mr-2 ${predictionDataLoaded ? 'text-green-600' : trainingDataLoaded ? 'text-blue-600' : 'text-gray-400'}`} />
+            <div>
+              <h3 className={`font-medium ${predictionDataLoaded ? 'text-green-900' : trainingDataLoaded ? 'text-blue-900' : 'text-gray-500'}`}>
+                Step 2: New Products Data {predictionDataLoaded && '✓'}
+              </h3>
+              <p className={`text-sm ${predictionDataLoaded ? 'text-green-700' : trainingDataLoaded ? 'text-blue-700' : 'text-gray-500'}`}>
+                Upload 2025 products for demand prediction
+              </p>
+            </div>
+          </div>
+
+          {trainingDataLoaded && !predictionDataLoaded && (
+            <div className="flex items-center space-x-3">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => handleFileUpload(Array.from(e.target.files), 'prediction')}
+                className="hidden"
+                id="prediction-upload"
+                disabled={isLoading}
+              />
+              <label htmlFor="prediction-upload" className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                {isLoading ? 'Processing...' : 'Upload Products'}
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stage 3: Model Training */}
+      <div className={`p-4 rounded-lg border ${modelTrained ? 'bg-green-50 border-green-200' : predictionDataLoaded ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Brain className={`w-5 h-5 mr-2 ${modelTrained ? 'text-green-600' : predictionDataLoaded ? 'text-blue-600' : 'text-gray-400'}`} />
+            <div>
+              <h3 className={`font-medium ${modelTrained ? 'text-green-900' : predictionDataLoaded ? 'text-blue-900' : 'text-gray-500'}`}>
+                Step 3: Train AI Model {modelTrained && '✓'}
+              </h3>
+              <p className={`text-sm ${modelTrained ? 'text-green-700' : predictionDataLoaded ? 'text-blue-700' : 'text-gray-500'}`}>
+                Train the forecasting model on historical data
+              </p>
+            </div>
+          </div>
+
+          {predictionDataLoaded && !modelTrained && (
+            <button
+              onClick={handleModelTraining}
+              disabled={isLoading}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              {isLoading ? 'Training...' : 'Train Model'}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// Analytics Dashboard Component
-function AnalyticsDashboard({ salesData, onShowCategories }) {
+// Analytics Dashboard Component (modified for new products)
+function AnalyticsDashboard({ salesData, onShowCategories, brandConfig, modelStatus }) {
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     if (salesData.length > 0) {
-      const categoryYearData = {};
+      // For new products, show category distribution instead of sales history
+      const categoryData = {};
       
-      salesData.forEach(sale => {
-        const year = new Date(sale['Sale Date']).getFullYear();
-        const category = sale['Category'];
-        
-        if (!categoryYearData[category]) {
-          categoryYearData[category] = { 2022: 0, 2023: 0, 2024: 0, total: 0 };
+      salesData.forEach(product => {
+        const category = product.category || 'Unknown';
+        if (!categoryData[category]) {
+          categoryData[category] = { category, count: 0, predicted_demand: 0 };
         }
-        
-        if (year >= 2022 && year <= 2024) {
-          categoryYearData[category][year] += 1;
-          categoryYearData[category].total += 1;
-        }
+        categoryData[category].count += 1;
+        categoryData[category].predicted_demand += product.predictedDemand || 0;
       });
 
-      const topCategories = Object.entries(categoryYearData)
-        .sort(([,a], [,b]) => b.total - a.total)
-        .slice(0, 10)
-        .map(([category, data]) => ({ category, ...data }));
+      const topCategories = Object.values(categoryData)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
 
       setChartData(topCategories);
     }
   }, [salesData]);
 
-  const maxSales = Math.max(...chartData.map(item => item.total));
+  const maxCount = Math.max(...chartData.map(item => item.count), 1);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Sales Analytics Dashboard</h2>
-          <p className="text-gray-600">Top 10 Categories Performance (2022-2024)</p>
+          <h2 className="text-2xl font-bold text-gray-900">New Products Dashboard</h2>
+          <p className="text-gray-600">2025 Product Categories for Demand Forecasting</p>
+          {brandConfig.available_features && (
+            <p className="text-sm text-purple-600 mt-1">
+              Brand Features: {brandConfig.available_features.join(', ')}
+            </p>
+          )}
         </div>
         <button
           onClick={onShowCategories}
@@ -375,114 +479,95 @@ function AnalyticsDashboard({ salesData, onShowCategories }) {
       </div>
 
       <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-4">Product Categories Distribution</h3>
         <div className="space-y-4">
           {chartData.map((item, index) => (
             <div key={item.category} className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-900">{item.category}</span>
-                <span className="text-sm text-gray-500">{item.total.toLocaleString()} sales</span>
+                <span className="text-sm text-gray-500">{item.count} products</span>
               </div>
               
               <div className="flex h-8 bg-gray-200 rounded-full overflow-hidden">
                 <div 
-                  className="bg-blue-500 flex items-center justify-center text-xs text-white font-medium"
-                  style={{ width: `${(item[2022] / maxSales) * 100}%` }}
-                  title={`2022: ${item[2022]} sales`}
-                >
-                  {item[2022] > 50 ? '2022' : ''}
-                </div>
-                <div 
-                  className="bg-green-500 flex items-center justify-center text-xs text-white font-medium"
-                  style={{ width: `${(item[2023] / maxSales) * 100}%` }}
-                  title={`2023: ${item[2023]} sales`}
-                >
-                  {item[2023] > 50 ? '2023' : ''}
-                </div>
-                <div 
                   className="bg-purple-500 flex items-center justify-center text-xs text-white font-medium"
-                  style={{ width: `${(item[2024] / maxSales) * 100}%` }}
-                  title={`2024: ${item[2024]} sales`}
+                  style={{ width: `${(item.count / maxCount) * 100}%` }}
+                  title={`${item.count} products in ${item.category}`}
                 >
-                  {item[2024] > 50 ? '2024' : ''}
+                  {item.count > 5 ? item.count : ''}
                 </div>
               </div>
               
               <div className="flex justify-between text-xs text-gray-500">
-                <span>2022: {item[2022]}</span>
-                <span>2023: {item[2023]}</span>
-                <span>2024: {item[2024]}</span>
+                <span>Products: {item.count}</span>
+                <span>Est. Demand: {item.predicted_demand}</span>
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-6 flex justify-center space-x-6">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">2022</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">2023</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-purple-500 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">2024</span>
-          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <div className="text-3xl font-bold text-blue-600">{salesData.length.toLocaleString()}</div>
-          <div className="text-sm text-gray-600">Total Sales</div>
+          <div className="text-sm text-gray-600">New Products</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <div className="text-3xl font-bold text-green-600">{chartData.length}</div>
-          <div className="text-sm text-gray-600">Top Categories</div>
+          <div className="text-sm text-gray-600">Categories</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <div className="text-3xl font-bold text-purple-600">
-            {chartData.length > 0 ? Math.round(chartData.reduce((sum, item) => sum + item.total, 0) / chartData.length) : 0}
+            {chartData.length > 0 ? Math.round(chartData.reduce((sum, item) => sum + item.count, 0) / chartData.length) : 0}
           </div>
-          <div className="text-sm text-gray-600">Avg Sales/Category</div>
+          <div className="text-sm text-gray-600">Avg Products/Category</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6 text-center">
-          <div className="text-3xl font-bold text-orange-600">3</div>
-          <div className="text-sm text-gray-600">Years Data</div>
+          <div className="text-3xl font-bold text-orange-600">
+            {modelStatus === 'READY' ? 'Ready' : 'Training'}
+          </div>
+          <div className="text-sm text-gray-600">AI Model Status</div>
         </div>
       </div>
     </div>
   );
 }
 
-// Categories Grid Component
-function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
+// Categories Grid Component (modified for new products)
+function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics, brandConfig }) {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     if (salesData.length > 0) {
-      const categoryStats = salesData.reduce((acc, sale) => {
-        const category = sale['Category'];
+      const categoryStats = salesData.reduce((acc, product) => {
+        const category = product.category || 'Unknown';
         if (!acc[category]) {
           acc[category] = {
             name: category,
-            totalSales: 0,
-            uniqueProducts: new Set(),
-            years: new Set()
+            totalProducts: 0,
+            uniqueFeatures: new Set(),
+            avgDemand: 0,
+            totalDemand: 0
           };
         }
-        acc[category].totalSales += 1;
-        acc[category].uniqueProducts.add(sale['Product Name']);
-        acc[category].years.add(new Date(sale['Sale Date']).getFullYear());
+        acc[category].totalProducts += 1;
+        acc[category].totalDemand += product.predictedDemand || 0;
+        
+        // Add unique features
+        if (product.attributes) {
+          Object.values(product.attributes).forEach(attr => {
+            if (attr) acc[category].uniqueFeatures.add(attr);
+          });
+        }
+        
         return acc;
       }, {});
 
       const categoriesArray = Object.values(categoryStats).map(cat => ({
         ...cat,
-        uniqueProducts: cat.uniqueProducts.size,
-        years: Array.from(cat.years).sort()
-      })).sort((a, b) => b.totalSales - a.totalSales);
+        uniqueFeatures: cat.uniqueFeatures.size,
+        avgDemand: cat.totalProducts > 0 ? Math.round(cat.totalDemand / cat.totalProducts) : 0
+      })).sort((a, b) => b.totalProducts - a.totalProducts);
 
       setCategories(categoriesArray);
     }
@@ -497,10 +582,10 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
             className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
           >
             <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-            Back to Analytics
+            Back to Dashboard
           </button>
-          <h2 className="text-2xl font-bold text-gray-900">Product Categories</h2>
-          <p className="text-gray-600">{categories.length} categories available</p>
+          <h2 className="text-2xl font-bold text-gray-900">New Product Categories</h2>
+          <p className="text-gray-600">{categories.length} categories for 2025 forecasting</p>
         </div>
       </div>
 
@@ -520,21 +605,21 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
               
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex justify-between">
-                  <span>Total Sales:</span>
-                  <span className="font-medium">{category.totalSales.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
                   <span>Products:</span>
-                  <span className="font-medium">{category.uniqueProducts}</span>
+                  <span className="font-medium">{category.totalProducts}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Data Years:</span>
-                  <span className="font-medium">{category.years.join(', ')}</span>
+                  <span>Avg Demand:</span>
+                  <span className="font-medium">{category.avgDemand}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Variations:</span>
+                  <span className="font-medium">{category.uniqueFeatures}</span>
                 </div>
               </div>
               
               <div className="mt-4 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
-                Click to View Products
+                Click to Forecast
               </div>
             </div>
           </div>
@@ -544,7 +629,7 @@ function CategoriesGrid({ salesData, onSelectCategory, onBackToAnalytics }) {
   );
 }
 
-// Split Screen View Component with Product-Level View
+// Split Screen View Component - keeping the original structure but with new data flow
 function SplitScreenView({ 
   category, 
   products, 
@@ -568,7 +653,6 @@ function SplitScreenView({
     const hasAnyDistribution = selectedProducts.some(product => 
       distributions[product.productCode]?.data?.length > 0
     );
-    // Also check if we're currently generating distributions for selected products
     const isGeneratingForSelected = isGeneratingDistribution && selectedProducts.length > 0;
     
     setShowOnlySelected(hasAnyDistribution || isGeneratingForSelected);
@@ -601,7 +685,6 @@ function SplitScreenView({
   const filteredProducts = productsList.filter(product => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // If distributions are generated or we're loading, only show selected products
     if (showOnlySelected) {
       const hasSelectedSKUs = product.skus.some(sku => 
         selectedProducts.some(selected => selected.productCode === sku.productCode)
@@ -617,7 +700,6 @@ function SplitScreenView({
       (product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
        product.productCode?.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    // If distributions are generated or we're loading, only show selected SKUs
     if (showOnlySelected) {
       const isSelected = selectedProducts.some(selected => 
         selected.productCode === product.productCode
@@ -656,7 +738,7 @@ function SplitScreenView({
             <h2 className="text-xl font-bold text-gray-900">{category}</h2>
             <p className="text-sm text-gray-600">
               {showSKULevel ? filteredSKUs.length : filteredProducts.length} {showSKULevel ? 'SKUs' : 'products'} 
-              {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected`}
+              {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected for forecasting`}
             </p>
           </div>
           
@@ -680,7 +762,7 @@ function SplitScreenView({
                   ) : (
                     <>
                       <Zap className="w-3 h-3 mr-1 inline" />
-                      Generate Distribution
+                      Generate AI Forecast
                     </>
                   )}
                 </button>
@@ -798,12 +880,12 @@ function SplitScreenView({
             <div className="h-full flex items-center justify-center text-center">
               <div>
                 <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select Products</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Select New Products</h3>
                 <p className="text-gray-600">
-                  Choose one or more products from the left to view distribution options
+                  Choose one or more 2025 products to generate AI demand forecasts
                 </p>
                 <div className="mt-4 text-sm text-gray-500">
-                  <p>💡 Tip: You can select multiple products for batch distribution</p>
+                  <p>💡 Tip: Select multiple products for batch forecasting</p>
                 </div>
               </div>
             </div>
@@ -821,15 +903,15 @@ function SplitScreenView({
             </div>
             
             <h3 className="text-xl font-semibold text-gray-900 mb-3">
-              Generating AI Distribution
+              Generating AI Demand Forecast
             </h3>
             
             <p className="text-sm text-gray-600 mb-2">
-              Processing {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''}
+              Processing {selectedProducts.length} new product{selectedProducts.length > 1 ? 's' : ''}
             </p>
             
             <p className="text-xs text-gray-500 mb-6">
-              AI is analyzing sales patterns, seasonality trends, and optimizing stock allocation for maximum performance
+              AI is analyzing product attributes, category patterns, and mapping to historical data for optimal demand prediction
             </p>
             
             <div className="flex justify-center mb-4">
@@ -850,7 +932,7 @@ function SplitScreenView({
   );
 }
 
-// Product Level Card Component
+// Product Level Card Component - keeping original structure
 function ProductLevelCard({ 
   product, 
   selectedProducts, 
@@ -925,8 +1007,8 @@ function ProductLevelCard({
         {/* Product Summary */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Sales:</span>
-            <span className="font-medium">{product.totalSales}</span>
+            <span className="text-gray-600">New Product:</span>
+            <span className="font-medium">Yes</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Predicted:</span>
@@ -946,7 +1028,7 @@ function ProductLevelCard({
         {someSKUsSelected && (
           <div className="p-2 bg-purple-50 rounded-lg">
             <p className="text-sm text-purple-700">
-              {selectedSKUs.length} of {product.skus.length} SKUs selected
+              {selectedSKUs.length} of {product.skus.length} SKUs selected for forecasting
             </p>
           </div>
         )}
@@ -992,7 +1074,7 @@ function ProductLevelCard({
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{sku.historicalSales} sales</p>
+                    <p className="text-sm font-medium">New SKU</p>
                     {forecasts[sku.productCode] && (
                       <p className="text-xs text-gray-500">
                         Pred: {forecasts[sku.productCode].predictedDemand}
@@ -1009,7 +1091,7 @@ function ProductLevelCard({
   );
 }
 
-// Enhanced Product Card Component with Multi-Select
+// Enhanced Product Card Component with Multi-Select - keeping original structure
 function ProductCard({ 
   product, 
   onSelect, 
@@ -1085,14 +1167,14 @@ function ProductCard({
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Sales:</span>
-          <span className="text-lg font-semibold text-gray-900">{product.historicalSales?.toLocaleString() || 0}</span>
+          <span className="text-sm text-gray-600">Status:</span>
+          <span className="text-lg font-semibold text-blue-600">New Product</span>
         </div>
 
         {showPredictions && forecast && (
           <div className="border-t pt-3 space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Demand:</span>
+              <span className="text-gray-600">AI Forecast:</span>
               <span className="font-semibold">{forecast.predictedDemand}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -1112,7 +1194,7 @@ function ProductCard({
           <div className="p-2 bg-green-50 rounded-lg">
             <div className="flex items-center">
               <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-              <span className="text-sm font-medium text-green-800">Distribution Ready</span>
+              <span className="text-sm font-medium text-green-800">Forecast Ready</span>
             </div>
           </div>
         )}
@@ -1121,7 +1203,7 @@ function ProductCard({
   );
 }
 
-// Multi Distribution Panel Component
+// Multi Distribution Panel Component - updated for new products
 function MultiDistributionPanel({ selectedProducts, distributions, forecasts, onGenerateDistribution, isLoading, isGeneratingDistribution }) {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -1149,6 +1231,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
       
       const exportData = {
         exportDate: new Date().toISOString(),
+        exportType: 'NEW_PRODUCT_DEMAND_FORECAST',
         shop: shop,
         selectedProducts: selectedProducts.length,
         totalAllocated: totalAllocated,
@@ -1158,7 +1241,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
           forecast: forecasts[product.productCode],
           distributions: distributions[product.productCode]?.data || []
         })),
-        modelVersion: 'Sequential_Forecasting_v1.0'
+        modelVersion: 'AI_Demand_Forecasting_v2.0'
       };
 
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -1167,7 +1250,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `multi_distribution_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `new_product_forecast_${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1185,7 +1268,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
       <div className="h-full flex flex-col">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-4">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Multi-Product Distribution Plan
+            New Product Demand Forecast
           </h3>
           
           <div className="mb-6">
@@ -1217,7 +1300,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
 
           <div className="text-center py-8">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No distributions generated yet</p>
+            <p className="text-gray-500 mb-4">No demand forecasts generated yet</p>
             <button
               onClick={onGenerateDistribution}
               disabled={isGeneratingDistribution}
@@ -1231,7 +1314,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
               ) : (
                 <>
                   <Zap className="w-4 h-4 mr-2 inline" />
-                  Generate Distribution for All Products
+                  Generate AI Forecast for All Products
                 </>
               )}
             </button>
@@ -1246,18 +1329,18 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-gray-900">
-            Multi-Product Distribution Plan
+            New Product Demand Plan
           </h3>
           <div className="text-sm text-gray-500">
-            Total: {totalAllocated} units across {selectedProducts.length} SKU's
+            Total: {totalAllocated} units across {selectedProducts.length} new SKU's
           </div>
         </div>
 
-        {/* Action Buttons - Moved to Top */}
+        {/* Action Buttons */}
         <div className="flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-lg border">
           <div className="text-sm text-gray-600">
             <Brain className="w-4 h-4 inline mr-1" />
-            AI-optimized multi-product distribution
+            AI-powered demand forecasting for new products
           </div>
 
           <div className="flex space-x-3">
@@ -1280,7 +1363,7 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
               ) : (
                 <>
                   <Download className="w-4 h-4 mr-2 inline" />
-                  Export All to POS
+                  Export Forecast to POS
                 </>
               )}
             </button>
@@ -1299,9 +1382,9 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
             </span>
           </div>
 
-          {/* Products Summary - Scrollable Area */}
+          {/* Products Summary */}
           <div className="space-y-4">
-            <h5 className="font-medium text-gray-700">Distribution Summary</h5>
+            <h5 className="font-medium text-gray-700">Demand Forecast Summary</h5>
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {selectedProducts.map(product => {
                 const productDistributions = distributions[product.productCode]?.data || [];
@@ -1317,15 +1400,9 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-semibold text-purple-600">{productTotal}</div>
-                        <div className="text-xs text-gray-500">units allocated</div>
+                        <div className="text-xs text-gray-500">units forecasted</div>
                       </div>
                     </div>
-                    
-                    {productDistributions.length > 0 && (
-                      <div className="mt-2 text-xs text-gray-600">
-                        {productDistributions.length} variations distributed
-                      </div>
-                    )}
                     
                     {forecast && (
                       <div className="mt-2 flex justify-between text-xs text-gray-500">
@@ -1356,6 +1433,7 @@ function InitialStockDistribution() {
   // View State Management
   const [currentView, setCurrentView] = useState('upload');
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [currentStage, setCurrentStage] = useState('upload'); // upload, training, prediction, ready
   
   // Data State Management
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -1368,6 +1446,40 @@ function InitialStockDistribution() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingDistribution, setIsGeneratingDistribution] = useState(false);
   const [error, setError] = useState(null);
+  const [brandConfig, setBrandConfig] = useState({});
+
+  const handleStageComplete = async (stage, data) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+  
+      if (stage === 'training') {
+        setBrandConfig(data.brand_config);
+        setModelStatus('TRAINING_DATA_LOADED');
+        console.log('Training data loaded:', data);
+      } else if (stage === 'prediction') {
+        const productsData = data.sample_products || [];
+        console.log('🔍 Prediction products data:', productsData); // Add this
+        console.log('🔍 Products count:', productsData.length); // Add this
+        setProducts(productsData);
+        setIsDataLoaded(true);
+        setModelStatus('PREDICTION_DATA_LOADED');
+        console.log('Prediction data loaded:', data);
+      } else if (stage === 'training_complete') {
+        console.log('🔍 Current products state:', products); // Add this
+        console.log('🔍 Products length:', products.length); // Add this
+        setModelStatus('READY');
+        setCurrentView('analytics');
+        setCurrentStage('ready');
+        console.log('Model trained successfully:', data);
+      }
+    } catch (error) {
+      setError(`Stage completion failed: ${error.message}`);
+      setModelStatus('ERROR');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDataLoad = async (csvData) => {
     try {
@@ -1375,7 +1487,7 @@ function InitialStockDistribution() {
       setError(null);
       setModelStatus('PROCESSING');
 
-      const { products: processedProducts, salesData: processedSalesData } = await apiService.processCSVData(csvData);
+      const { products: processedProducts } = await apiService.processCSVData(csvData);
       
       const productsWithQuantities = processedProducts.map(product => ({
         ...product,
@@ -1383,12 +1495,12 @@ function InitialStockDistribution() {
       }));
 
       setProducts(productsWithQuantities);
-      setSalesData(processedSalesData);
+      setSalesData([]);
       setIsDataLoaded(true);
       setModelStatus('READY');
       setCurrentView('analytics');
 
-      console.log(`Loaded ${processedProducts.length} products and ${processedSalesData.length} sales records`);
+      console.log(`Loaded ${processedProducts.length} products`);
 
     } catch (error) {
       setError(`Data processing failed: ${error.message}`);
@@ -1402,34 +1514,51 @@ function InitialStockDistribution() {
     console.log('🚀 Generate Distribution clicked!', productCodes);
     
     try {
-      // Set loading state IMMEDIATELY for instant feedback
       setIsGeneratingDistribution(true);
       console.log('✅ Loading state set to true');
       setError(null);
 
-      // Handle both single product and multi-product generation
-      const codes = Array.isArray(productCodes) ? productCodes : [productCodes];
-      console.log(`📦 Processing ${codes.length} products...`);
+      // Use new API for batch predictions
+      const result = await apiService.generatePredictions(productCodes);
+      
+      // Convert API response to frontend format
+      result.predictions.forEach(prediction => {
+        setForecasts(prev => ({ ...prev, [prediction.product_code]: {
+          predictedDemand: prediction.predicted_demand,
+          confidence: prediction.confidence_score,
+          riskLevel: prediction.risk_level,
+          reasoning: `AI prediction based on product attributes and category patterns`
+        }}));
 
-      for (const productCode of codes) {
-        console.log(`🔄 Generating forecast for ${productCode}...`);
-        const forecast = await apiService.generateForecast(salesData, productCode);
-        setForecasts(prev => ({ ...prev, [productCode]: forecast }));
-
-        console.log(`📊 Generating distribution for ${productCode}...`);
-        const distribution = await apiService.generateDistribution(salesData, productCode, forecast);
+        // Generate distribution for each product
+        const distribution = [{
+          shopId: 1,
+          productCode: prediction.product_code,
+          variation: {
+            size: prediction.size,
+            color: prediction.color,
+            sizeCode: prediction.attributes.size_code,
+            colorCode: prediction.attributes.color_code
+          },
+          allocatedQuantity: prediction.predicted_demand,
+          reasoning: `Initial allocation for new product. ${prediction.confidence_score}% confidence.`
+        }];
 
         setDistributions(prev => ({
           ...prev,
-          [productCode]: {
+          [prediction.product_code]: {
             data: distribution,
             status: 'COMPLETE',
-            forecast: forecast
+            forecast: {
+              predictedDemand: prediction.predicted_demand,
+              confidence: prediction.confidence_score,
+              riskLevel: prediction.risk_level
+            }
           }
         }));
-      }
+      });
 
-      console.log(`✅ Generated distribution for ${codes.length} products`);
+      console.log(`✅ Generated predictions for ${result.predictions.length} products`);
 
     } catch (error) {
       console.error('❌ Distribution generation failed:', error);
@@ -1466,10 +1595,10 @@ function InitialStockDistribution() {
       return prev;
     });
 
-    // Generate forecast if not already generated
-    if (!forecasts[product.productCode] && salesData.length > 0) {
+    // Generate forecast if not already generated (for new products, use AI prediction)
+    if (!forecasts[product.productCode] && modelStatus === 'READY') {
       try {
-        const forecast = await apiService.generateForecast(salesData, product.productCode);
+        const forecast = await apiService.generateForecast(product.productCode, product);
         setForecasts(prev => ({ ...prev, [product.productCode]: forecast }));
       } catch (error) {
         console.error('Failed to generate forecast:', error);
@@ -1516,27 +1645,26 @@ function InitialStockDistribution() {
 
             {isLoading && (
               <LoadingSpinner 
-                message="Processing Your Sales Data" 
-                subMessage="Training AI model and extracting product insights..."
+                message="Processing Your Data" 
+                subMessage="Setting up AI model and processing datasets..."
               />
             )}
 
             {!isLoading && !isDataLoaded && !error && (
               <div className="text-center py-12">
                 <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to AI Stock Distribution</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to AI Demand Forecasting</h3>
                 <p className="text-gray-600 mb-4">
-                  Upload your historical sales CSV file to begin AI-powered inventory forecasting and distribution.
+                  Upload your datasets to begin AI-powered demand forecasting for new products without sales history.
                 </p>
-                <div className="text-sm text-gray-500 mt-4">
-                  <p className="mb-2">Expected CSV format:</p>
-                  <div className="bg-gray-100 rounded p-3 text-left inline-block">
-                    <code className="text-xs">
-                      Shop Id, Shop, Sale Date, Product Name, Product Code,<br />
-                      Size Name, Size Code, Color Name, Color Code, Category,<br />
-                      Gender, Season, LineItem
-                    </code>
+                <div className="text-sm text-gray-500 mt-4 space-y-2">
+                  <p className="mb-2"><strong>Three-Stage Process:</strong></p>
+                  <div className="bg-gray-100 rounded p-3 text-left inline-block space-y-1">
+                    <div>1. <strong>Training Data:</strong> Historical sales (2022-2024) + optional inventory data</div>
+                    <div>2. <strong>Prediction Data:</strong> New products (2025) for demand forecasting</div>
+                    <div>3. <strong>AI Training:</strong> Model learns patterns to predict new product demand</div>
                   </div>
+                  <p className="text-xs mt-2">Supports multiple brands with flexible feature sets</p>
                 </div>
               </div>
             )}
@@ -1547,8 +1675,10 @@ function InitialStockDistribution() {
         return (
           <div className="flex-1 overflow-y-auto p-6">
             <AnalyticsDashboard 
-              salesData={salesData} 
+              salesData={salesData.length > 0 ? salesData : products} 
               onShowCategories={handleShowCategories}
+              brandConfig={brandConfig}
+              modelStatus={modelStatus}
             />
           </div>
         );
@@ -1557,9 +1687,10 @@ function InitialStockDistribution() {
         return (
           <div className="flex-1 overflow-y-auto p-6">
             <CategoriesGrid 
-              salesData={salesData}
+              salesData={salesData.length > 0 ? salesData : products}
               onSelectCategory={handleSelectCategory}
               onBackToAnalytics={handleBackToAnalytics}
+              brandConfig={brandConfig}
             />
           </div>
         );
@@ -1594,21 +1725,26 @@ function InitialStockDistribution() {
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center">
               <Brain className="w-6 h-6 mr-2 text-purple-600" />
-              <h2 className="text-2xl font-bold text-gray-800">AI Stock Distribution</h2>
+              <h2 className="text-2xl font-bold text-gray-800">AI Demand Forecasting</h2>
               <div className="ml-4 text-sm text-gray-500">
-                {currentView === 'analytics' && `Season: SS25 • Analytics Dashboard`}
-                {currentView === 'categories' && `Season: SS25 • Product Categories`}
-                {currentView === 'split' && `Season: SS25 • ${selectedCategory}`}
-                {currentView === 'upload' && `Season: SS25 • Data Upload`}
+                {currentView === 'analytics' && `New Products Forecasting • ${Object.keys(brandConfig).length > 0 ? 'Multi-Brand Support' : 'Ready'}`}
+                {currentView === 'categories' && `Product Categories • Brand Features: ${brandConfig.available_features?.length || 0}`}
+                {currentView === 'split' && `${selectedCategory} • AI Predictions`}
+                {currentView === 'upload' && `Multi-Stage Setup • Training → Prediction → Forecasting`}
               </div>
             </div>
 
             <ConnectionStatus isDataLoaded={isDataLoaded} modelStatus={modelStatus} />
           </div>
 
-          {/* Data Upload Section - Only show when no data is loaded */}
+          {/* Multi-Stage Upload Section - Only show during setup */}
           {currentView === 'upload' && (
-            <DataUploadSection onDataLoad={handleDataLoad} isLoading={isLoading} />
+            <DataUploadSection 
+              onDataLoad={handleDataLoad} 
+              isLoading={isLoading} 
+              currentStage={currentStage}
+              onStageComplete={handleStageComplete}
+            />
           )}
         </header>
 

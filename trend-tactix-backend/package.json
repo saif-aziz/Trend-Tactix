@@ -1,6 +1,7 @@
 {
     "name": "trend-tactix-backend",
     "version": "1.0.0",
+    "proxy": "http://localhost:5000",
     "description": "Backend for Trend Tactix",
     "main": "server.js",
     "scripts": {
