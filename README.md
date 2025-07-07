@@ -1,16 +1,117 @@
-<<<<<<< HEAD
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# AI Demand Forecasting System 🚀
 
-Currently, two official plugins are available:
+A sophisticated AI-powered demand forecasting system designed specifically for new products without sales history. Built with React frontend and Flask backend, utilizing ensemble machine learning models for accurate business predictions.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🎯 Overview
 
-## Expanding the ESLint configuration
+This system helps businesses forecast demand for new products by leveraging historical sales patterns, product attributes, and advanced machine learning algorithms. Perfect for fashion retail, e-commerce, and any business launching new products.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-=======
-# Trend-Tactix
->>>>>>> baed6ddb4722f06489c81e175a1e8b1434f89be7
+### Key Features
+
+- **🤖 AI Ensemble Models**: Random Forest + XGBoost + LightGBM for maximum accuracy
+- **📊 Real Target Training**: Uses actual future sales instead of synthetic targets
+- **⏱️ Time-Series Validation**: Proper historical validation with accuracy metrics
+- **🎨 Modern UI**: Beautiful React interface with loading states and progress tracking
+- **📈 Business Intelligence**: Category-based insights, confidence scoring, and risk assessment
+- **🔄 Flexible Workflow**: Optional validation step with bypass options
+- **📦 Multi-Product Support**: Batch forecasting for efficient planning
+
+## 🛠️ Technology Stack
+
+### Backend
+- **Python 3.8+**
+- **Flask** - Web framework
+- **Pandas** - Data manipulation
+- **Scikit-learn** - Machine learning
+- **XGBoost** - Gradient boosting
+- **LightGBM** - Gradient boosting
+- **NumPy** - Numerical computing
+
+### Frontend
+- **React 18+**
+- **Tailwind CSS** - Styling
+- **Lucide React** - Icons
+- **Modern JavaScript (ES6+)**
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Python 3.8 or higher**
+- **Node.js 16 or higher**
+- **npm or yarn**
+- **Git**
+
+## 🚀 Installation & Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/ai-demand-forecasting.git
+cd ai-demand-forecasting
+
+
+
+
+# Navigate to backend directory
+cd trend-tactix-backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install required packages
+pip install flask flask-cors pandas numpy scikit-learn xgboost lightgbm
+
+# Or install from requirements.txt (if available)
+pip install -r requirements.txt
+
+pip install flask==2.3.3
+pip install flask-cors==4.0.0
+pip install pandas==2.1.1
+pip install numpy==1.24.3
+pip install scikit-learn==1.3.0
+pip install xgboost==1.7.6
+pip install lightgbm==4.1.0
+
+
+# Navigate to frontend directory
+cd trend-tactix
+
+# Install dependencies
+npm install
+
+
+npm install react react-dom
+npm install @tailwindcss/forms
+npm install lucide-react
+npm install @headlessui/react
+
+
+# Navigate to backend directory
+cd trend-tactix-backend
+
+# Activate virtual environment (if not already active)
+# Windows:
+venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
+# macOS/Linux:
+source venv/bin/activate
+
+# Start Flask server
+python api_routes.py
+
+
+# RUN FRONTEND
+# Open new terminal and navigate to frontend
+cd trend-tactix
+
+# Start React development server
+npm start / npm run dev

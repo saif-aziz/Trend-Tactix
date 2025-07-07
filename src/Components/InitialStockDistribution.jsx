@@ -191,6 +191,23 @@ const apiService = {
     
     const result = await response.json();
     return result.distribution;
+  },
+
+  // Add this new method to apiService object (around line 60):
+  validateModel: async (validationConfig = {}) => {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    const response = await fetch('http://localhost:5000/api/validate-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(validationConfig)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Model validation failed');
+    }
+    
+    return await response.json();
   }
 };
 
@@ -273,41 +290,86 @@ function DataUploadSection({ onDataLoad, isLoading, currentStage, onStageComplet
   const [dragOver, setDragOver] = useState(false);
   const [trainingDataLoaded, setTrainingDataLoaded] = useState(false);
   const [predictionDataLoaded, setPredictionDataLoaded] = useState(false);
+  const [modelValidated, setModelValidated] = useState(false);
   const [modelTrained, setModelTrained] = useState(false);
+  const [validationResults, setValidationResults] = useState(null);
+  
+  // Individual loading states for each step
+  const [isLoadingTraining, setIsLoadingTraining] = useState(false);
+  const [isLoadingPrediction, setIsLoadingPrediction] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
 
   const handleTrainingDataUpload = async (salesFile, inventoryFile = null) => {
     try {
-      console.log('🚀 Starting upload...', salesFile.name);
-      console.log('📝 About to call API...');
+      setIsLoadingTraining(true);
+      console.log('🚀 Starting training data upload...', salesFile.name);
       
       const result = await apiService.loadTrainingData(salesFile, inventoryFile);
       
-      console.log('✅ Upload successful:', result);
+      console.log('✅ Training data upload successful:', result);
       setTrainingDataLoaded(true);
       onStageComplete('training', result);
     } catch (error) {
-      console.error('❌ Upload failed:', error);
+      console.error('❌ Training data upload failed:', error);
       alert(`Training data upload failed: ${error.message}`);
+    } finally {
+      setIsLoadingTraining(false);
     }
   };
 
   const handlePredictionDataUpload = async (file) => {
     try {
+      setIsLoadingPrediction(true);
+      console.log('🚀 Starting prediction data upload...', file.name);
+      
       const result = await apiService.loadPredictionData(file);
+      
+      console.log('✅ Prediction data upload successful:', result);
       setPredictionDataLoaded(true);
       onStageComplete('prediction', result);
     } catch (error) {
+      console.error('❌ Prediction data upload failed:', error);
       alert(`Prediction data upload failed: ${error.message}`);
+    } finally {
+      setIsLoadingPrediction(false);
+    }
+  };
+
+  const handleModelValidation = async () => {
+    try {
+      setIsValidating(true);
+      console.log('🚀 Starting model validation...');
+      
+      const result = await apiService.validateModel();
+      
+      console.log('✅ Model validation successful:', result);
+      setModelValidated(true);
+      setValidationResults(result);
+      onStageComplete('validation', result);
+    } catch (error) {
+      console.error('❌ Model validation failed:', error);
+      alert(`Model validation failed: ${error.message}`);
+    } finally {
+      setIsValidating(false);
     }
   };
 
   const handleModelTraining = async () => {
     try {
+      setIsTraining(true);
+      console.log('🚀 Starting model training...');
+      
       const result = await apiService.trainModel();
+      
+      console.log('✅ Model training successful:', result);
       setModelTrained(true);
       onStageComplete('training_complete', result);
     } catch (error) {
+      console.error('❌ Model training failed:', error);
       alert(`Model training failed: ${error.message}`);
+    } finally {
+      setIsTraining(false);
     }
   };
 
@@ -331,105 +393,477 @@ function DataUploadSection({ onDataLoad, isLoading, currentStage, onStageComplet
   };
 
   return (
-    <div className="mb-6 space-y-4">
-      {/* Stage 1: Training Data */}
-      <div className={`p-4 rounded-lg border ${trainingDataLoaded ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Database className={`w-5 h-5 mr-2 ${trainingDataLoaded ? 'text-green-600' : 'text-blue-600'}`} />
-            <div>
-              <h3 className={`font-medium ${trainingDataLoaded ? 'text-green-900' : 'text-blue-900'}`}>
-                Step 1: Training Data {trainingDataLoaded && '✓'}
-              </h3>
-              <p className={`text-sm ${trainingDataLoaded ? 'text-green-700' : 'text-blue-700'}`}>
-                Upload historical sales data (required) and inventory data (optional)
-              </p>
+    <>
+      <div className="mb-6 space-y-4">
+        {/* Stage 1: Training Data */}
+        <div className={`p-4 rounded-lg border transition-all duration-300 ${
+          trainingDataLoaded 
+            ? 'bg-green-50 border-green-200 shadow-sm' 
+            : 'bg-blue-50 border-blue-200 hover:border-blue-300'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Database className={`w-5 h-5 mr-3 ${
+                trainingDataLoaded ? 'text-green-600' : 'text-blue-600'
+              }`} />
+              <div>
+                <h3 className={`font-medium ${
+                  trainingDataLoaded ? 'text-green-900' : 'text-blue-900'
+                }`}>
+                  Step 1: Training Data {trainingDataLoaded && '✓'}
+                </h3>
+                <p className={`text-sm ${
+                  trainingDataLoaded ? 'text-green-700' : 'text-blue-700'
+                }`}>
+                  Upload historical sales data (required) and inventory data (optional)
+                </p>
+              </div>
+            </div>
+
+            {!trainingDataLoaded && (
+              <div className="flex items-center space-x-3">
+                <input
+                  type="file"
+                  accept=".csv"
+                  multiple
+                  onChange={(e) => handleFileUpload(Array.from(e.target.files), 'training')}
+                  className="hidden"
+                  id="training-upload"
+                  disabled={isLoadingTraining}
+                />
+                <label 
+                  htmlFor="training-upload" 
+                  className={`cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium ${
+                    isLoadingTraining ? 'opacity-50 cursor-not-allowed transform scale-95' : 'hover:transform hover:scale-105'
+                  }`}
+                >
+                  {isLoadingTraining ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2 inline" />
+                      Upload Training Data
+                    </>
+                  )}
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stage 2: Prediction Data */}
+        <div className={`p-4 rounded-lg border transition-all duration-300 ${
+          predictionDataLoaded 
+            ? 'bg-green-50 border-green-200 shadow-sm' 
+            : trainingDataLoaded 
+              ? 'bg-blue-50 border-blue-200 hover:border-blue-300' 
+              : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Package className={`w-5 h-5 mr-3 ${
+                predictionDataLoaded 
+                  ? 'text-green-600' 
+                  : trainingDataLoaded 
+                    ? 'text-blue-600' 
+                    : 'text-gray-400'
+              }`} />
+              <div>
+                <h3 className={`font-medium ${
+                  predictionDataLoaded 
+                    ? 'text-green-900' 
+                    : trainingDataLoaded 
+                      ? 'text-blue-900' 
+                      : 'text-gray-500'
+                }`}>
+                  Step 2: New Products Data {predictionDataLoaded && '✓'}
+                </h3>
+                <p className={`text-sm ${
+                  predictionDataLoaded 
+                    ? 'text-green-700' 
+                    : trainingDataLoaded 
+                      ? 'text-blue-700' 
+                      : 'text-gray-500'
+                }`}>
+                  Upload 2025 products for demand prediction
+                </p>
+              </div>
+            </div>
+
+            {trainingDataLoaded && !predictionDataLoaded && (
+              <div className="flex items-center space-x-3">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => handleFileUpload(Array.from(e.target.files), 'prediction')}
+                  className="hidden"
+                  id="prediction-upload"
+                  disabled={isLoadingPrediction}
+                />
+                <label 
+                  htmlFor="prediction-upload" 
+                  className={`cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium ${
+                    isLoadingPrediction ? 'opacity-50 cursor-not-allowed transform scale-95' : 'hover:transform hover:scale-105'
+                  }`}
+                >
+                  {isLoadingPrediction ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2 inline" />
+                      Upload Products
+                    </>
+                  )}
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stage 3: Model Validation (Optional) */}
+        <div className={`p-4 rounded-lg border transition-all duration-300 ${
+          modelValidated 
+            ? 'bg-green-50 border-green-200 shadow-sm' 
+            : predictionDataLoaded 
+              ? 'bg-blue-50 border-blue-200 hover:border-blue-300' 
+              : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <BarChart3 className={`w-5 h-5 mr-3 ${
+                modelValidated 
+                  ? 'text-green-600' 
+                  : predictionDataLoaded 
+                    ? 'text-blue-600' 
+                    : 'text-gray-400'
+              }`} />
+              <div>
+                <h3 className={`font-medium ${
+                  modelValidated 
+                    ? 'text-green-900' 
+                    : predictionDataLoaded 
+                      ? 'text-blue-900' 
+                      : 'text-gray-500'
+                }`}>
+                  Step 3: Validate Model Accuracy {modelValidated && '✓'} 
+                  <span className="text-xs font-normal text-orange-500 ml-2 bg-orange-100 px-2 py-1 rounded-full">
+                    Optional
+                  </span>
+                </h3>
+                <p className={`text-sm ${
+                  modelValidated 
+                    ? 'text-green-700' 
+                    : predictionDataLoaded 
+                      ? 'text-blue-700' 
+                      : 'text-gray-500'
+                }`}>
+                  Test model accuracy on historical data (recommended for confidence)
+                </p>
+                {validationResults && (
+                  <div className="mt-2 p-2 bg-green-100 rounded-lg">
+                    <p className="text-xs text-green-700 font-medium">
+                      📊 Accuracy: {validationResults.summary?.average_mape?.toFixed(1)}% MAPE • 
+                      Quality: {validationResults.summary?.validation_quality}
+                    </p>
+                  </div>
+                )}
+                {!modelValidated && predictionDataLoaded && (
+                  <p className="text-xs text-blue-600 mt-1 flex items-center">
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Validation provides accuracy insights but can be skipped to train directly
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {predictionDataLoaded && !modelValidated && (
+              <button
+                onClick={handleModelValidation}
+                disabled={isValidating}
+                className={`px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200 font-medium ${
+                  isValidating ? 'opacity-50 cursor-not-allowed transform scale-95' : 'hover:transform hover:scale-105'
+                }`}
+              >
+                {isValidating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
+                    Validating...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="w-4 h-4 mr-2 inline" />
+                    Validate Model
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Stage 4: Model Training (Can bypass validation) */}
+        <div className={`p-4 rounded-lg border transition-all duration-300 ${
+          modelTrained 
+            ? 'bg-green-50 border-green-200 shadow-sm' 
+            : predictionDataLoaded 
+              ? 'bg-blue-50 border-blue-200 hover:border-blue-300' 
+              : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Brain className={`w-5 h-5 mr-3 ${
+                modelTrained 
+                  ? 'text-green-600' 
+                  : predictionDataLoaded 
+                    ? 'text-blue-600' 
+                    : 'text-gray-400'
+              }`} />
+              <div>
+                <h3 className={`font-medium ${
+                  modelTrained 
+                    ? 'text-green-900' 
+                    : predictionDataLoaded 
+                      ? 'text-blue-900' 
+                      : 'text-gray-500'
+                }`}>
+                  Step 4: Train AI Model {modelTrained && '✓'}
+                </h3>
+                <p className={`text-sm ${
+                  modelTrained 
+                    ? 'text-green-700' 
+                    : predictionDataLoaded 
+                      ? 'text-blue-700' 
+                      : 'text-gray-500'
+                }`}>
+                  Train the ensemble forecasting model (Random Forest + XGBoost + LightGBM)
+                </p>
+                {!modelValidated && predictionDataLoaded && !modelTrained && (
+                  <p className="text-xs text-yellow-600 mt-1 flex items-center">
+                    <Zap className="w-3 h-3 mr-1" />
+                    You can train directly or validate first for accuracy insights
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {predictionDataLoaded && !modelTrained && (
+              <div className="flex items-center space-x-3">
+                {/* Show validation status badge if validation was completed */}
+                {modelValidated && validationResults && (
+                  <div className="text-xs text-green-600 bg-green-100 px-3 py-2 rounded-lg border border-green-200">
+                    ✅ Validated: {validationResults.summary?.average_mape?.toFixed(1)}% MAPE
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleModelTraining}
+                  disabled={isTraining}
+                  className={`px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 font-medium ${
+                    isTraining ? 'opacity-50 cursor-not-allowed transform scale-95' : 'hover:transform hover:scale-105'
+                  }`}
+                >
+                  {isTraining ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
+                      Training...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="w-4 h-4 mr-2 inline" />
+                      {modelValidated ? 'Train Model' : 'Train Model (Skip Validation)'}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions Panel for Power Users */}
+        {predictionDataLoaded && !modelTrained && (
+          <div className="mt-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-gray-900 flex items-center">
+                  <Zap className="w-4 h-4 mr-2 text-yellow-500" />
+                  Quick Actions
+                </h4>
+                <p className="text-sm text-gray-600">For experienced users who want to skip steps</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                {!modelValidated && (
+                  <button
+                    onClick={handleModelValidation}
+                    disabled={isValidating}
+                    className="px-3 py-2 bg-orange-100 text-orange-700 rounded-md text-sm font-medium hover:bg-orange-200 transition-colors disabled:opacity-50"
+                  >
+                    {isValidating ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                        Validating...
+                      </>
+                    ) : (
+                      'Quick Validate'
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={handleModelTraining}
+                  disabled={isTraining}
+                  className="px-3 py-2 bg-purple-100 text-purple-700 rounded-md text-sm font-medium hover:bg-purple-200 transition-colors disabled:opacity-50"
+                >
+                  {isTraining ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                      Training...
+                    </>
+                  ) : (
+                    'Train Directly'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-
-          {!trainingDataLoaded && (
-            <div className="flex items-center space-x-3">
-              <input
-                type="file"
-                accept=".csv"
-                multiple
-                onChange={(e) => handleFileUpload(Array.from(e.target.files), 'training')}
-                className="hidden"
-                id="training-upload"
-                disabled={isLoading}
-              />
-              <label htmlFor="training-upload" className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                {isLoading ? 'Processing...' : 'Upload Training Data'}
-              </label>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Stage 2: Prediction Data */}
-      <div className={`p-4 rounded-lg border ${predictionDataLoaded ? 'bg-green-50 border-green-200' : trainingDataLoaded ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Package className={`w-5 h-5 mr-2 ${predictionDataLoaded ? 'text-green-600' : trainingDataLoaded ? 'text-blue-600' : 'text-gray-400'}`} />
-            <div>
-              <h3 className={`font-medium ${predictionDataLoaded ? 'text-green-900' : trainingDataLoaded ? 'text-blue-900' : 'text-gray-500'}`}>
-                Step 2: New Products Data {predictionDataLoaded && '✓'}
-              </h3>
-              <p className={`text-sm ${predictionDataLoaded ? 'text-green-700' : trainingDataLoaded ? 'text-blue-700' : 'text-gray-500'}`}>
-                Upload 2025 products for demand prediction
-              </p>
+      {/* Full Screen Loading Overlays with Enhanced Design */}
+      {isLoadingTraining && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-8 text-center border border-gray-200 max-w-md mx-4 transform animate-pulse">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Database className="w-10 h-10 text-blue-600" />
+              </div>
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-600 absolute top-2 right-2" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Loading Training Data
+            </h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Processing historical sales and inventory data...
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              🔍 Analyzing data structure, detecting features, and preparing for AI training
+            </p>
+            <div className="flex justify-center mb-4">
+              <div className="flex space-x-1">
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+              </div>
+            </div>
+            <div className="text-xs text-blue-600 font-medium bg-blue-50 px-3 py-2 rounded-full">
+              ⏱️ This may take 30-60 seconds depending on data size...
             </div>
           </div>
-
-          {trainingDataLoaded && !predictionDataLoaded && (
-            <div className="flex items-center space-x-3">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={(e) => handleFileUpload(Array.from(e.target.files), 'prediction')}
-                className="hidden"
-                id="prediction-upload"
-                disabled={isLoading}
-              />
-              <label htmlFor="prediction-upload" className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                {isLoading ? 'Processing...' : 'Upload Products'}
-              </label>
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
-      {/* Stage 3: Model Training */}
-      <div className={`p-4 rounded-lg border ${modelTrained ? 'bg-green-50 border-green-200' : predictionDataLoaded ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Brain className={`w-5 h-5 mr-2 ${modelTrained ? 'text-green-600' : predictionDataLoaded ? 'text-blue-600' : 'text-gray-400'}`} />
-            <div>
-              <h3 className={`font-medium ${modelTrained ? 'text-green-900' : predictionDataLoaded ? 'text-blue-900' : 'text-gray-500'}`}>
-                Step 3: Train AI Model {modelTrained && '✓'}
-              </h3>
-              <p className={`text-sm ${modelTrained ? 'text-green-700' : predictionDataLoaded ? 'text-blue-700' : 'text-gray-500'}`}>
-                Train the forecasting model on historical data
-              </p>
+      {isLoadingPrediction && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-8 text-center border border-gray-200 max-w-md mx-4 transform animate-pulse">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Package className="w-10 h-10 text-blue-600" />
+              </div>
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-600 absolute top-2 right-2" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Loading Prediction Data
+            </h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Processing 2025 new products for forecasting...
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              ✅ Validating product attributes and checking feature compatibility
+            </p>
+            <div className="flex justify-center mb-4">
+              <div className="flex space-x-1">
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+              </div>
+            </div>
+            <div className="text-xs text-blue-600 font-medium bg-blue-50 px-3 py-2 rounded-full">
+              🚀 Almost ready for AI model training...
             </div>
           </div>
-
-          {predictionDataLoaded && !modelTrained && (
-            <button
-              onClick={handleModelTraining}
-              disabled={isLoading}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Training...' : 'Train Model'}
-            </button>
-          )}
         </div>
-      </div>
-    </div>
+      )}
+
+      {isValidating && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-8 text-center border border-gray-200 max-w-md mx-4 transform animate-pulse">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="w-10 h-10 text-orange-600" />
+              </div>
+              <RefreshCw className="w-6 h-6 animate-spin text-orange-600 absolute top-2 right-2" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Validating Model Accuracy
+            </h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Testing AI model on historical data splits...
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              📊 Running time-series cross-validation to measure prediction accuracy
+            </p>
+            <div className="flex justify-center mb-4">
+              <div className="flex space-x-1">
+                <div className="w-3 h-3 bg-orange-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-orange-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-3 h-3 bg-orange-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+              </div>
+            </div>
+            <div className="text-xs text-orange-600 font-medium bg-orange-50 px-3 py-2 rounded-full">
+              ⏳ This may take 1-3 minutes for comprehensive validation...
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isTraining && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-8 text-center border border-gray-200 max-w-md mx-4 transform animate-pulse">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-10 h-10 text-purple-600" />
+              </div>
+              <RefreshCw className="w-6 h-6 animate-spin text-purple-600 absolute top-2 right-2" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Training AI Ensemble Model
+            </h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Training Random Forest, XGBoost, and LightGBM models...
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              🤖 Creating ensemble weights and optimizing for demand forecasting accuracy
+            </p>
+            <div className="flex justify-center mb-4">
+              <div className="flex space-x-1">
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+              </div>
+            </div>
+            <div className="text-xs text-purple-600 font-medium bg-purple-50 px-3 py-2 rounded-full">
+              🎯 Training ensemble models - this may take 2-5 minutes...
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-// Analytics Dashboard Component (modified for new products)
 function AnalyticsDashboard({ salesData, onShowCategories, brandConfig, modelStatus }) {
   const [chartData, setChartData] = useState([]);
 
@@ -478,6 +912,61 @@ function AnalyticsDashboard({ salesData, onShowCategories, brandConfig, modelSta
         </button>
       </div>
 
+      {/* Model Validation Results Card */}
+      {brandConfig.validation_results && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <BarChart3 className="w-5 h-5 mr-2 text-green-600" />
+            Model Validation Results
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {brandConfig.validation_results.summary?.average_mape?.toFixed(1)}%
+              </div>
+              <div className="text-sm text-gray-600">Average MAPE</div>
+              <div className="text-xs text-gray-500 mt-1">Lower is better</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {brandConfig.validation_results.summary?.accuracy_within_20_percent?.toFixed(1)}%
+              </div>
+              <div className="text-sm text-gray-600">Within 20%</div>
+              <div className="text-xs text-gray-500 mt-1">Predictions close to actual</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {brandConfig.validation_results.summary?.validation_quality || 'GOOD'}
+              </div>
+              <div className="text-sm text-gray-600">Quality Rating</div>
+              <div className="text-xs text-gray-500 mt-1">Overall assessment</div>
+            </div>
+          </div>
+          
+          {/* Validation Details */}
+          {brandConfig.validation_results.validation_results && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Validation Details</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>Validation Splits: {brandConfig.validation_results.n_splits}</div>
+                <div>Products Tested: {brandConfig.validation_results.validation_results.reduce((sum, r) => sum + r.n_products, 0)}</div>
+                <div>
+                  Confidence Level: 
+                  <span className={`ml-1 px-2 py-1 rounded text-xs font-medium ${
+                    brandConfig.validation_results.summary?.validation_quality === 'EXCELLENT' ? 'bg-green-100 text-green-800' :
+                    brandConfig.validation_results.summary?.validation_quality === 'GOOD' ? 'bg-blue-100 text-blue-800' :
+                    brandConfig.validation_results.summary?.validation_quality === 'FAIR' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {brandConfig.validation_results.summary?.validation_quality}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Product Categories Distribution</h3>
         <div className="space-y-4">
@@ -523,10 +1012,23 @@ function AnalyticsDashboard({ salesData, onShowCategories, brandConfig, modelSta
           <div className="text-sm text-gray-600">Avg Products/Category</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6 text-center">
-          <div className="text-3xl font-bold text-orange-600">
-            {modelStatus === 'READY' ? 'Ready' : 'Training'}
+          <div className={`text-3xl font-bold ${
+            modelStatus === 'READY' ? 'text-green-600' : 
+            modelStatus === 'VALIDATED' ? 'text-blue-600' : 
+            'text-orange-600'
+          }`}>
+            {modelStatus === 'READY' ? 'Ready' : 
+             modelStatus === 'VALIDATED' ? 'Validated' : 
+             modelStatus === 'TRAINING_DATA_LOADED' ? 'Data Loaded' :
+             modelStatus === 'PREDICTION_DATA_LOADED' ? 'Data Ready' :
+             'Training'}
           </div>
           <div className="text-sm text-gray-600">AI Model Status</div>
+          {brandConfig.validation_results && (
+            <div className="text-xs text-gray-500 mt-1">
+              {brandConfig.validation_results.summary?.average_mape?.toFixed(1)}% MAPE
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1447,27 +1949,28 @@ function InitialStockDistribution() {
   const [isGeneratingDistribution, setIsGeneratingDistribution] = useState(false);
   const [error, setError] = useState(null);
   const [brandConfig, setBrandConfig] = useState({});
-
+  
+  
   const handleStageComplete = async (stage, data) => {
     try {
-      setIsLoading(true);
+      
       setError(null);
-  
+      setIsLoading(true);
       if (stage === 'training') {
         setBrandConfig(data.brand_config);
         setModelStatus('TRAINING_DATA_LOADED');
         console.log('Training data loaded:', data);
       } else if (stage === 'prediction') {
         const productsData = data.sample_products || [];
-        console.log('🔍 Prediction products data:', productsData); // Add this
-        console.log('🔍 Products count:', productsData.length); // Add this
         setProducts(productsData);
         setIsDataLoaded(true);
         setModelStatus('PREDICTION_DATA_LOADED');
         console.log('Prediction data loaded:', data);
+      } else if (stage === 'validation') {
+        setModelStatus('VALIDATED');
+        setBrandConfig(prev => ({ ...prev, validation_results: data }));
+        console.log('Model validated:', data);
       } else if (stage === 'training_complete') {
-        console.log('🔍 Current products state:', products); // Add this
-        console.log('🔍 Products length:', products.length); // Add this
         setModelStatus('READY');
         setCurrentView('analytics');
         setCurrentStage('ready');
@@ -1476,8 +1979,6 @@ function InitialStockDistribution() {
     } catch (error) {
       setError(`Stage completion failed: ${error.message}`);
       setModelStatus('ERROR');
-    } finally {
-      setIsLoading(false);
     }
   };
 
