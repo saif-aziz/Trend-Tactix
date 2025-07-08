@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import traceback
 
 # Import our OPTIMIZED forecasting logic
-from optimized_forecaster import OptimizedInventoryForecaster
+# from optimized_forecaster import OptimizedInventoryForecaster
+from advanced_model_optimization import AdvancedOptimizedForecaster
 
 app = Flask(__name__)
 CORS(app, 
@@ -52,7 +53,7 @@ def health_check():
         
         return jsonify({
             'status': 'healthy',
-            'forecaster_type': 'OptimizedInventoryForecaster',
+            'forecaster_type': 'AdvancedOptimizedForecaster',
             'training_data_status': training_status,
             'model_status': model_status,
             'prediction_data_status': prediction_status,
@@ -105,9 +106,14 @@ def load_training_data():
                 inventory_filepath = None
 
         # Initialize OPTIMIZED forecaster
-        forecaster = OptimizedInventoryForecaster(
-            model_type=model_type,
-            prediction_horizon_days=prediction_horizon
+        # forecaster = OptimizedInventoryForecaster(
+        #     model_type=model_type,
+        #     prediction_horizon_days=prediction_horizon
+        # )
+
+        forecaster = AdvancedOptimizedForecaster(
+        model_type=model_type,
+        prediction_horizon_days=prediction_horizon
         )
         
         # Load training data
@@ -308,7 +314,7 @@ def validate_model():
 
 @app.route('/api/train-model', methods=['POST'])
 def train_model():
-    """Train the optimized forecasting model"""
+    """Train the optimized forecasting model - FIXED VERSION"""
     global trained_model
     
     try:
@@ -337,11 +343,12 @@ def train_model():
             validation_split=validation_split
         )
         
-        # Train ensemble model
-        print("Training ensemble model...")
+        # Train ADVANCED ensemble model with proper feature preparation
+        print("Training ADVANCED ensemble model...")
         model_params = data.get('model_params', {})
         
-        trained_model = forecaster.train_ensemble_model(
+        # Use the new advanced training method that handles categorical data properly
+        trained_model = forecaster.train_ensemble_model_advanced(
             training_features,
             model_params
         )
@@ -363,7 +370,7 @@ def train_model():
         print("✅ Model trained successfully!")
         
         return jsonify({
-            'message': 'Optimized ensemble model trained successfully',
+            'message': 'Advanced optimized ensemble model trained successfully',
             'training_samples': len(training_features),
             'feature_count': len(forecaster.feature_columns),
             'models_trained': list(forecaster.models.keys()),
@@ -386,7 +393,7 @@ def train_model():
 
 @app.route('/api/generate-predictions', methods=['POST'])
 def generate_predictions():
-    """Generate demand predictions for new products using optimized system"""
+    """Generate demand predictions for new products using FIXED optimized system"""
     try:
         if trained_model is None:
             return jsonify({'error': 'Model must be trained first'}), 400
@@ -412,9 +419,9 @@ def generate_predictions():
         print(f"Creating enhanced prediction features for {len(filtered_products)} products...")
         prediction_features = forecaster.create_enhanced_prediction_features(filtered_products)
         
-        # Generate ensemble predictions with business rules
-        print("Generating ensemble predictions...")
-        predictions = forecaster.predict_demand_ensemble(prediction_features)
+        # Generate ADVANCED ensemble predictions with business rules
+        print("Generating ADVANCED ensemble predictions...")
+        predictions = forecaster.predict_demand_ensemble_advanced(prediction_features)
         
         # Merge with product details
         detailed_predictions = filtered_products.merge(predictions, on='Product Code', how='left')
@@ -464,19 +471,21 @@ def generate_predictions():
             }
         
         return jsonify({
-            'message': f'Enhanced predictions generated for {len(predictions_list)} products',
+            'message': f'Advanced predictions generated for {len(predictions_list)} products',
             'predictions': predictions_list,
             'summary': summary,
             'model_info': {
                 'ensemble_models': list(forecaster.models.keys()),
                 'prediction_horizon_days': forecaster.prediction_horizon,
-                'features_used': len(forecaster.feature_columns)
+                'features_used': len(forecaster.feature_columns),
+                'optimization_features': ['categorical_encoding', 'business_rules', 'ensemble_weighting']
             }
         })
         
     except Exception as e:
         print(f"Prediction error: {traceback.format_exc()}")
         return jsonify({'error': f'Prediction generation failed: {str(e)}'}), 500
+
 
 @app.route('/api/products', methods=['GET'])
 def get_prediction_products():
@@ -732,7 +741,7 @@ def get_model_info():
                 print(f"Could not extract feature importance: {e}")
         
         model_info = {
-            'forecaster_type': 'OptimizedInventoryForecaster',
+            'forecaster_type': 'AdvancedOptimizedForecaster',
             'ensemble_models': list(forecaster.models.keys()),
             'ensemble_weights': forecaster.ensemble_weights,
             'prediction_horizon_days': forecaster.prediction_horizon,
@@ -920,6 +929,549 @@ def generate_new_product_distribution(product_row, forecast):
             'allocatedQuantity': 5,
             'reasoning': 'Fallback allocation due to processing error'
         }]
+    
+    # Add these routes to your existing api_routes.py file
+
+@app.route('/api/optimize-hyperparameters', methods=['POST'])
+def optimize_hyperparameters():
+    """Optimize model hyperparameters - FIXED VERSION"""
+    try:
+        if forecaster is None or training_sales_data is None:
+            return jsonify({'error': 'Training data must be loaded first'}), 400
+        
+        data = request.get_json() or {}
+        optimization_method = data.get('method', 'optuna')  # optuna, grid_search, random_search
+        n_trials = data.get('n_trials', 50)
+        
+        print(f"🔧 Starting FIXED hyperparameter optimization using {optimization_method}")
+        
+        # Create training features
+        training_features = forecaster.create_training_features_with_temporal_split(
+            training_sales_data, training_inventory_data
+        )
+        
+        print(f"   📊 Training features shape: {training_features.shape}")
+        
+        # CRITICAL FIX: Prepare data for ML properly
+        X, feature_columns = forecaster._prepare_features_for_ml(training_features)
+        y = training_features['target_demand']
+        
+        print(f"   📊 Prepared features: {X.shape}")
+        print(f"   📊 Feature columns: {len(feature_columns)}")
+        print(f"   📊 Target shape: {y.shape}")
+        
+        # FIXED: Check if all features are numeric properly
+        numeric_check = True
+        non_numeric_cols = []
+        
+        for col in X.columns:
+            if not pd.api.types.is_numeric_dtype(X[col]):
+                numeric_check = False
+                non_numeric_cols.append(col)
+        
+        print(f"   🎯 All features numeric: {numeric_check}")
+        
+        if not numeric_check:
+            print(f"   ⚠️ Non-numeric columns found: {non_numeric_cols}")
+            # Try to convert remaining non-numeric columns
+            for col in non_numeric_cols:
+                try:
+                    X[col] = pd.to_numeric(X[col], errors='coerce').fillna(0)
+                    print(f"   🔧 Converted {col} to numeric")
+                except:
+                    print(f"   ❌ Could not convert {col} to numeric")
+        
+        # Final check
+        final_check = all(pd.api.types.is_numeric_dtype(X[col]) for col in X.columns)
+        print(f"   ✅ Final numeric check: {final_check}")
+        
+        if not final_check:
+            return jsonify({'error': 'Some features could not be converted to numeric format'}), 400
+        
+        # Check for NaN values
+        if X.isnull().any().any():
+            print("   🔧 Filling NaN values with 0")
+            X = X.fillna(0)
+        
+        if y.isnull().any():
+            print("   🔧 Removing rows with NaN targets")
+            valid_mask = ~y.isnull()
+            X = X[valid_mask]
+            y = y[valid_mask]
+        
+        print(f"   📈 Final data shapes: X={X.shape}, y={y.shape}")
+        
+        # Optimize hyperparameters with properly prepared data
+        best_params = forecaster.optimize_hyperparameters(
+            X, y, method=optimization_method, n_trials=n_trials
+        )
+        
+        # Store best parameters
+        forecaster.best_params = best_params
+        
+        return jsonify({
+            'message': f'Hyperparameter optimization completed using {optimization_method}',
+            'best_parameters': best_params,
+            'optimization_method': optimization_method,
+            'n_trials': n_trials,
+            'feature_preparation': 'categorical_data_properly_encoded',
+            'data_info': {
+                'samples': len(X),
+                'features': len(feature_columns),
+                'target_range': [float(y.min()), float(y.max())],
+                'all_numeric': final_check
+            }
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in optimize_hyperparameters: {str(e)}")
+        import traceback
+        print(f"📚 Full traceback:\n{traceback.format_exc()}")
+        return jsonify({'error': f'Hyperparameter optimization failed: {str(e)}'}), 500
+
+@app.route('/api/optimize-category-models', methods=['POST'])
+def optimize_category_models():
+    """Optimize category-specific models - FIXED VERSION"""
+    try:
+        if forecaster is None or training_sales_data is None:
+            return jsonify({'error': 'Training data must be loaded first'}), 400
+        
+        print("🎯 Starting FIXED category-specific model optimization...")
+        
+        # Create training features
+        training_features = forecaster.create_training_features_with_temporal_split(
+            training_sales_data, training_inventory_data
+        )
+        
+        print(f"   📊 Training features shape: {training_features.shape}")
+        print(f"   📦 Categories available: {training_features.get('Category_first', pd.Series()).nunique()}")
+        
+        # Optimize category-specific models with FIXED preprocessing
+        category_performance = forecaster.optimize_category_specific_models(training_features)
+        
+        return jsonify({
+            'message': 'Category-specific models optimized successfully with proper categorical encoding',
+            'category_performance': category_performance,
+            'categories_optimized': len(category_performance),
+            'categories_skipped': len([cat for cat in training_features.get('Category_first', pd.Series()).unique() 
+                                    if cat not in category_performance]),
+            'fix_applied': 'categorical_data_preprocessing_fixed'
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in optimize_category_models: {str(e)}")
+        return jsonify({'error': f'Category optimization failed: {str(e)}'}), 500
+
+@app.route('/api/update-ensemble-weights', methods=['POST'])
+def update_ensemble_weights():
+    """Update ensemble weights dynamically - FIXED VERSION"""
+    try:
+        if forecaster is None or not hasattr(forecaster, 'models'):
+            return jsonify({'error': 'Models must be trained first'}), 400
+        
+        # FIXED: Handle empty JSON body
+        try:
+            data = request.get_json() or {}
+        except Exception as e:
+            print(f"   📝 No JSON data provided, using defaults: {e}")
+            data = {}
+        
+        # Get validation data (use recent period for weight updates)
+        max_date = training_sales_data['Sale Date'].max()
+        val_start = max_date - timedelta(days=90)
+        
+        val_sales = training_sales_data[training_sales_data['Sale Date'] >= val_start]
+        
+        if len(val_sales) == 0:
+            return jsonify({'error': 'No recent validation data available'}), 400
+        
+        # Create validation features
+        val_features = forecaster.create_training_features_with_temporal_split(
+            val_sales, training_inventory_data, max_date
+        )
+        
+        # CRITICAL FIX: Prepare features properly for ML with consistency
+        X_val, _ = forecaster._prepare_features_for_ml(val_features)
+        y_val = val_features['target_demand']
+        
+        print(f"   📊 Validation data shape: {X_val.shape}")
+        print(f"   🎯 Feature consistency: {X_val.shape[1]} features")
+        
+        # Get individual model predictions
+        model_predictions = {}
+        for name, model in forecaster.models.items():
+            try:
+                model_predictions[name] = model.predict(X_val)
+                print(f"   ✅ {name} predictions generated")
+            except Exception as e:
+                print(f"   ⚠️ {name} prediction failed: {e}")
+        
+        if not model_predictions:
+            return jsonify({'error': 'No models could generate predictions for weight update'}), 400
+        
+        # Update weights dynamically
+        new_weights = forecaster.update_ensemble_weights_dynamically(
+            X_val, y_val, model_predictions
+        )
+        
+        # Update learning rate based on performance
+        forecaster.adapt_learning_rate(None)
+        
+        return jsonify({
+            'message': 'Ensemble weights updated successfully with feature consistency',
+            'new_weights': new_weights,
+            'learning_rate': forecaster.learning_rate,
+            'performance_history_length': len(forecaster.performance_history),
+            'models_evaluated': list(model_predictions.keys()),
+            'validation_samples': len(X_val),
+            'feature_consistency': 'fixed'
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in update_ensemble_weights: {str(e)}")
+        import traceback
+        print(f"📚 Full traceback:\n{traceback.format_exc()}")
+        return jsonify({'error': f'Weight update failed: {str(e)}'}), 500
+
+
+
+@app.route('/api/monitor-model-drift', methods=['POST'])
+def monitor_model_drift():
+    """Monitor model drift and performance degradation - FIXED VERSION"""
+    try:
+        if forecaster is None or not hasattr(forecaster, 'models'):
+            return jsonify({'error': 'Models must be trained first'}), 400
+        
+        # Use recent data for drift monitoring
+        max_date = training_sales_data['Sale Date'].max()
+        recent_start = max_date - timedelta(days=30)  # Last 30 days
+        
+        recent_sales = training_sales_data[training_sales_data['Sale Date'] >= recent_start]
+        
+        if len(recent_sales) == 0:
+            return jsonify({'error': 'No recent data available for drift monitoring'}), 400
+        
+        # Create features for recent data
+        recent_features = forecaster.create_training_features_with_temporal_split(
+            recent_sales, training_inventory_data, max_date
+        )
+        
+        # CRITICAL FIX: Prepare features properly for ML with consistency
+        X_recent, available_features = forecaster._prepare_features_for_ml(recent_features)
+        y_recent = recent_features['target_demand']
+        
+        print(f"   📊 Recent data shape: {X_recent.shape}")
+        print(f"   🎯 Available features: {len(available_features)}")
+        print(f"   ✅ Feature consistency: {X_recent.shape[1]} features")
+        
+        # Generate predictions using the first available model
+        predictions = None
+        model_used = None
+        for name, model in forecaster.models.items():
+            try:
+                predictions = model.predict(X_recent)
+                model_used = name
+                print(f"   ✅ Used {name} for drift monitoring")
+                break
+            except Exception as e:
+                print(f"   ⚠️ {name} prediction failed: {e}")
+                continue
+        
+        if predictions is None:
+            return jsonify({'error': 'All models failed to generate predictions for drift monitoring'}), 400
+        
+        # Monitor drift
+        drift_report = forecaster.monitor_model_drift(predictions, y_recent)
+        
+        return jsonify({
+            'message': 'Model drift monitoring completed with feature consistency',
+            'drift_report': drift_report,
+            'samples_analyzed': len(recent_sales),
+            'monitoring_period_days': 30,
+            'features_used': len(available_features),
+            'model_used_for_monitoring': model_used,
+            'feature_consistency': 'fixed'
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in monitor_model_drift: {str(e)}")
+        import traceback
+        print(f"📚 Full traceback:\n{traceback.format_exc()}")
+        return jsonify({'error': f'Drift monitoring failed: {str(e)}'}), 500
+
+@app.route('/api/save-model-version', methods=['POST'])
+def save_model_version():
+    """Save current model version"""
+    try:
+        if forecaster is None or not hasattr(forecaster, 'models'):
+            return jsonify({'error': 'Models must be trained first'}), 400
+        
+        data = request.get_json() or {}
+        version_name = data.get('version_name')
+        
+        # Save models with versioning
+        model_dir = forecaster.save_models(version=version_name)
+        
+        return jsonify({
+            'message': 'Model version saved successfully',
+            'model_directory': model_dir,
+            'version': version_name or 'auto-generated',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in save_model_version: {str(e)}")
+        return jsonify({'error': f'Model saving failed: {str(e)}'}), 500
+
+@app.route('/api/load-model-version', methods=['POST'])
+def load_model_version():
+    """Load specific model version"""
+    try:
+        data = request.get_json()
+        version = data.get('version')
+        
+        if not version:
+            return jsonify({'error': 'Version parameter is required'}), 400
+        
+        # Load model version
+        metadata = forecaster.load_models(version)
+        
+        return jsonify({
+            'message': f'Model version {version} loaded successfully',
+            'metadata': metadata,
+            'models_loaded': list(forecaster.models.keys()),
+            'ensemble_weights': forecaster.ensemble_weights
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in load_model_version: {str(e)}")
+        return jsonify({'error': f'Model loading failed: {str(e)}'}), 500
+
+@app.route('/api/get-optimization-report', methods=['GET'])
+def get_optimization_report():
+    """Get comprehensive optimization report"""
+    try:
+        if forecaster is None:
+            return jsonify({'error': 'Forecaster not initialized'}), 400
+        
+        # Generate optimization report
+        report = forecaster.get_optimization_report()
+        
+        # Add additional metrics
+        if hasattr(forecaster, 'models') and forecaster.models:
+            report['models_trained'] = list(forecaster.models.keys())
+        
+        # Add training data info
+        if training_sales_data is not None:
+            report['training_data_size'] = len(training_sales_data)
+            report['date_range'] = {
+                'start': training_sales_data['Sale Date'].min().isoformat(),
+                'end': training_sales_data['Sale Date'].max().isoformat()
+            }
+        
+        return jsonify({
+            'message': 'Optimization report generated',
+            'report': report,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in get_optimization_report: {str(e)}")
+        return jsonify({'error': f'Report generation failed: {str(e)}'}), 500
+
+@app.route('/api/update-with-new-data', methods=['POST'])
+def update_with_new_data():
+    """Update models with new sales data (online learning)"""
+    try:
+        if forecaster is None:
+            return jsonify({'error': 'Forecaster not initialized'}), 400
+        
+        # Get new data from request
+        data = request.get_json()
+        new_sales_records = data.get('new_sales_data', [])
+        retrain_threshold = data.get('retrain_threshold', 100)
+        
+        if not new_sales_records:
+            return jsonify({'error': 'No new sales data provided'}), 400
+        
+        # Convert to DataFrame
+        new_sales_df = pd.DataFrame(new_sales_records)
+        
+        # Ensure required columns exist
+        required_cols = ['Product Code', 'Sale Date']
+        missing_cols = [col for col in required_cols if col not in new_sales_df.columns]
+        
+        if missing_cols:
+            return jsonify({'error': f'Missing required columns: {missing_cols}'}), 400
+        
+        # Convert Sale Date to datetime
+        new_sales_df['Sale Date'] = pd.to_datetime(new_sales_df['Sale Date'])
+        
+        # Update models with new data
+        forecaster.update_with_new_data(new_sales_df, retrain_threshold)
+        
+        return jsonify({
+            'message': 'Models updated with new data successfully',
+            'new_records_processed': len(new_sales_records),
+            'retrain_threshold': retrain_threshold,
+            'incremental_data_size': len(getattr(forecaster, 'incremental_data', []))
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in update_with_new_data: {str(e)}")
+        return jsonify({'error': f'Data update failed: {str(e)}'}), 500
+
+@app.route('/api/setup-ab-testing', methods=['POST'])
+def setup_ab_testing():
+    """Setup A/B testing framework"""
+    try:
+        if forecaster is None:
+            return jsonify({'error': 'Forecaster not initialized'}), 400
+        
+        data = request.get_json() or {}
+        test_ratio = data.get('test_ratio', 0.2)
+        
+        # Setup A/B testing
+        forecaster.setup_ab_testing(test_ratio)
+        
+        return jsonify({
+            'message': 'A/B testing framework setup successfully',
+            'test_ratio': test_ratio,
+            'control_version': 'current',
+            'test_version': 'latest'
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in setup_ab_testing: {str(e)}")
+        return jsonify({'error': f'A/B testing setup failed: {str(e)}'}), 500
+
+@app.route('/api/get-available-model-versions', methods=['GET'])
+def get_available_model_versions():
+    """Get list of available model versions"""
+    try:
+        model_save_path = getattr(forecaster, 'model_save_path', 'models/')
+        
+        if not os.path.exists(model_save_path):
+            return jsonify({
+                'message': 'No model versions found',
+                'versions': []
+            })
+        
+        # Get all version directories
+        versions = []
+        for item in os.listdir(model_save_path):
+            if item.startswith('version_') and os.path.isdir(os.path.join(model_save_path, item)):
+                version_dir = os.path.join(model_save_path, item)
+                metadata_path = os.path.join(version_dir, 'metadata.json')
+                
+                version_info = {'version': item.replace('version_', '')}
+                
+                if os.path.exists(metadata_path):
+                    try:
+                        with open(metadata_path, 'r') as f:
+                            metadata = json.load(f)
+                        version_info.update({
+                            'timestamp': metadata.get('timestamp'),
+                            'performance': metadata.get('baseline_performance'),
+                            'models': list(metadata.get('ensemble_weights', {}).keys())
+                        })
+                    except:
+                        pass
+                
+                versions.append(version_info)
+        
+        # Sort by timestamp (newest first)
+        versions.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return jsonify({
+            'message': f'Found {len(versions)} model versions',
+            'versions': versions
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in get_available_model_versions: {str(e)}")
+        return jsonify({'error': f'Version listing failed: {str(e)}'}), 500
+
+@app.route('/api/compare-model-versions', methods=['POST'])
+def compare_model_versions():
+    """Compare performance between different model versions"""
+    try:
+        data = request.get_json()
+        version1 = data.get('version1')
+        version2 = data.get('version2')
+        
+        if not version1 or not version2:
+            return jsonify({'error': 'Both version1 and version2 are required'}), 400
+        
+        # Load metadata for both versions
+        model_save_path = getattr(forecaster, 'model_save_path', 'models/')
+        
+        def load_version_metadata(version):
+            version_dir = os.path.join(model_save_path, f'version_{version}')
+            metadata_path = os.path.join(version_dir, 'metadata.json')
+            
+            if not os.path.exists(metadata_path):
+                raise ValueError(f'Version {version} not found')
+            
+            with open(metadata_path, 'r') as f:
+                return json.load(f)
+        
+        metadata1 = load_version_metadata(version1)
+        metadata2 = load_version_metadata(version2)
+        
+        # Compare key metrics
+        comparison = {
+            'version1': {
+                'version': version1,
+                'timestamp': metadata1.get('timestamp'),
+                'performance': metadata1.get('baseline_performance'),
+                'weights': metadata1.get('ensemble_weights')
+            },
+            'version2': {
+                'version': version2,
+                'timestamp': metadata2.get('timestamp'),
+                'performance': metadata2.get('baseline_performance'),
+                'weights': metadata2.get('ensemble_weights')
+            }
+        }
+        
+        # Calculate improvement metrics
+        if (metadata1.get('baseline_performance') and metadata2.get('baseline_performance')):
+            perf1 = metadata1['baseline_performance']
+            perf2 = metadata2['baseline_performance']
+            
+            if 'mae' in perf1 and 'mae' in perf2:
+                mae_improvement = (perf1['mae'] - perf2['mae']) / perf1['mae'] * 100
+                comparison['mae_improvement_pct'] = mae_improvement
+            
+            if 'mape' in perf1 and 'mape' in perf2:
+                mape_improvement = (perf1['mape'] - perf2['mape']) / perf1['mape'] * 100
+                comparison['mape_improvement_pct'] = mape_improvement
+        
+        return jsonify({
+            'message': 'Version comparison completed',
+            'comparison': comparison
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in compare_model_versions: {str(e)}")
+        return jsonify({'error': f'Version comparison failed: {str(e)}'}), 500
+
+# Add this helper function for incremental learning
+def _create_features_from_sales(self, sales_df):
+    """Create features from new sales data for incremental learning"""
+    # This is a simplified version - you'd implement the full feature creation logic
+    features_df = sales_df.groupby('Product Code').agg({
+        'Sale Date': ['count', 'min', 'max']
+    }).reset_index()
+    
+    # Flatten column names
+    features_df.columns = ['Product Code', 'total_sales', 'first_sale', 'last_sale']
+    
+    # Create target (simplified)
+    features_df['target_demand'] = features_df['total_sales']
+    
+    return features_df
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

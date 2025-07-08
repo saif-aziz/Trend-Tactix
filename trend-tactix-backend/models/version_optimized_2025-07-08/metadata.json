@@ -1,0 +1,108 @@
+{
+  "version": "optimized_2025-07-08",
+  "timestamp": "2025-07-08T04:02:23.663136",
+  "ensemble_weights": {
+    "rf_basic": 1.0
+  },
+  "dynamic_weights": {
+    "rf_basic": 1.0
+  },
+  "feature_columns": [
+    "total_sales",
+    "days_since_first_sale",
+    "days_since_last_sale",
+    "product_lifecycle_days",
+    "sales_velocity",
+    "recent_velocity",
+    "lifecycle_velocity",
+    "sales_recency_score",
+    "sales_frequency_score",
+    "is_new_product",
+    "is_mature_product",
+    "is_declining",
+    "category_sku_count",
+    "category_total_sales",
+    "category_avg_sales_per_sku",
+    "category_market_share",
+    "category_competition",
+    "category_saturation",
+    "category_performance_tier_encoded",
+    "size_category_popularity",
+    "size_category_rank",
+    "color_total_sales",
+    "color_trend_score",
+    "total_inventory_movement",
+    "avg_inventory_movement",
+    "std_inventory_movement",
+    "inventory_transactions",
+    "days_since_first_inventory",
+    "days_since_last_inventory",
+    "total_stockout_qty",
+    "stockout_frequency",
+    "total_returns",
+    "return_frequency",
+    "season_1_sales",
+    "season_2_sales",
+    "season_3_sales",
+    "season_4_sales",
+    "Size Name_first_encoded",
+    "Size Code_first_encoded",
+    "Color Name_first_encoded",
+    "Color Code_first_encoded",
+    "Category_first_encoded",
+    "Gender_first_encoded",
+    "Season_first_encoded",
+    "LineItem_first_encoded"
+  ],
+  "best_params": {
+    "rf": {
+      "n_estimators": 362,
+      "max_depth": 15,
+      "min_samples_split": 9,
+      "min_samples_leaf": 5,
+      "max_features": "sqrt"
+    },
+    "xgb": {
+      "n_estimators": 396,
+      "max_depth": 8,
+      "learning_rate": 0.16925580048736538,
+      "subsample": 0.9962151131001482,
+      "colsample_bytree": 0.7397363089616089,
+      "reg_alpha": 0.3274302241436678,
+      "reg_lambda": 0.9281121188408274
+    },
+    "lgb": {
+      "n_estimators": 353,
+      "max_depth": 7,
+      "learning_rate": 0.09050817310019094,
+      "subsample": 0.7723727146477397,
+      "colsample_bytree": 0.8152451680882741,
+      "reg_alpha": 0.33117638322277915,
+      "reg_lambda": 0.0001131678993381291
+    }
+  },
+  "performance_history": [
+    {
+      "timestamp": "2025-07-08T03:17:15.869159",
+      "model_errors": {
+        "rf_basic": 0.7854682997936474
+      },
+      "weights": {
+        "rf_basic": 1.0
+      }
+    },
+    {
+      "timestamp": "2025-07-08T03:58:56.532717",
+      "model_errors": {
+        "rf_basic": 0.7854682997936474
+      },
+      "weights": {
+        "rf_basic": 1.0
+      }
+    }
+  ],
+  "baseline_performance": {
+    "mae": 1.030903210231429,
+    "mape": 103.0903210231429
+  }
+}

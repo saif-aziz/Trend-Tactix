@@ -32,7 +32,22 @@ import {
   Plus,
   Minus,
   Eye,
-  EyeOff
+  EyeOff,
+  Settings,
+  Activity,
+  BarChart2,
+  Clock,
+  Layers,
+  Sliders,
+  TrendingDown,
+  Award,
+  Lock,
+  Unlock,
+  GitBranch,
+  History,
+  PlayCircle,
+  PauseCircle,
+  RotateCcw
 } from 'lucide-react';
 
 // Updated API Service for new training/prediction workflow
@@ -208,7 +223,99 @@ const apiService = {
     }
     
     return await response.json();
-  }
+  },
+
+// Add these new methods to the existing apiService object:
+
+optimizeHyperparameters: async (method = 'optuna', nTrials = 50) => {
+  const response = await fetch('http://localhost:5000/api/optimize-hyperparameters', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method, n_trials: nTrials })
+  });
+  if (!response.ok) throw new Error('Hyperparameter optimization failed');
+  return await response.json();
+},
+
+updateEnsembleWeights: async () => {
+  const response = await fetch('http://localhost:5000/api/update-ensemble-weights', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) throw new Error('Weight update failed');
+  return await response.json();
+},
+
+optimizeCategoryModels: async () => {
+  const response = await fetch('http://localhost:5000/api/optimize-category-models', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) throw new Error('Category optimization failed');
+  return await response.json();
+},
+
+monitorModelDrift: async () => {
+  const response = await fetch('http://localhost:5000/api/monitor-model-drift', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) throw new Error('Drift monitoring failed');
+  return await response.json();
+},
+
+saveModelVersion: async (versionName = null) => {
+  const response = await fetch('http://localhost:5000/api/save-model-version', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ version_name: versionName })
+  });
+  if (!response.ok) throw new Error('Model saving failed');
+  return await response.json();
+},
+
+loadModelVersion: async (version) => {
+  const response = await fetch('http://localhost:5000/api/load-model-version', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ version })
+  });
+  if (!response.ok) throw new Error('Model loading failed');
+  return await response.json();
+},
+
+getAvailableModelVersions: async () => {
+  const response = await fetch('http://localhost:5000/api/get-available-model-versions');
+  if (!response.ok) throw new Error('Failed to get model versions');
+  return await response.json();
+},
+
+getOptimizationReport: async () => {
+  const response = await fetch('http://localhost:5000/api/get-optimization-report');
+  if (!response.ok) throw new Error('Failed to get optimization report');
+  return await response.json();
+},
+
+updateWithNewData: async (newSalesData, retrainThreshold = 100) => {
+  const response = await fetch('http://localhost:5000/api/update-with-new-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_sales_data: newSalesData, retrain_threshold: retrainThreshold })
+  });
+  if (!response.ok) throw new Error('Data update failed');
+  return await response.json();
+},
+
+setupABTesting: async (testRatio = 0.2) => {
+  const response = await fetch('http://localhost:5000/api/setup-ab-testing', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ test_ratio: testRatio })
+  });
+  if (!response.ok) throw new Error('A/B testing setup failed');
+  return await response.json();
+}
+
 };
 
 // Loading Component with better animation
@@ -229,6 +336,361 @@ function LoadingSpinner({ message = "Loading...", subMessage = "" }) {
             <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+// Advanced Optimization Panel Component
+function AdvancedOptimizationPanel({ 
+  modelStatus, 
+  onOptimizationComplete, 
+  brandConfig,
+  isModelTrained 
+}) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationResults, setOptimizationResults] = useState(null);
+  const [activeOptimizations, setActiveOptimizations] = useState(new Set());
+  const [optimizationReport, setOptimizationReport] = useState(null);
+  const [availableVersions, setAvailableVersions] = useState([]);
+  const [selectedVersion, setSelectedVersion] = useState('');
+  const [driftReport, setDriftReport] = useState(null);
+
+  const runOptimization = async (type, config = {}) => {
+    try {
+      setActiveOptimizations(prev => new Set([...prev, type]));
+      
+      let result;
+      switch (type) {
+        case 'hyperparameters':
+          result = await apiService.optimizeHyperparameters(
+            config.method || 'optuna', 
+            config.nTrials || 50
+          );
+          break;
+        case 'weights':
+          result = await apiService.updateEnsembleWeights();
+          break;
+        case 'category':
+          result = await apiService.optimizeCategoryModels();
+          break;
+        case 'drift':
+          result = await apiService.monitorModelDrift();
+          setDriftReport(result.drift_report);
+          break;
+        default:
+          throw new Error(`Unknown optimization type: ${type}`);
+      }
+      
+      setOptimizationResults(prev => ({ ...prev, [type]: result }));
+      onOptimizationComplete(type, result);
+      
+    } catch (error) {
+      alert(`${type} optimization failed: ${error.message}`);
+    } finally {
+      setActiveOptimizations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(type);
+        return newSet;
+      });
+    }
+  };
+
+  const loadOptimizationReport = async () => {
+    try {
+      const report = await apiService.getOptimizationReport();
+      setOptimizationReport(report.report);
+    } catch (error) {
+      console.error('Failed to load optimization report:', error);
+    }
+  };
+
+  const loadAvailableVersions = async () => {
+    try {
+      const versions = await apiService.getAvailableModelVersions();
+      setAvailableVersions(versions.versions);
+    } catch (error) {
+      console.error('Failed to load model versions:', error);
+    }
+  };
+
+  const saveCurrentModel = async () => {
+    try {
+      const versionName = `optimized_${new Date().toISOString().split('T')[0]}`;
+      await apiService.saveModelVersion(versionName);
+      await loadAvailableVersions();
+      alert('Model version saved successfully!');
+    } catch (error) {
+      alert(`Failed to save model: ${error.message}`);
+    }
+  };
+
+  const loadModelVersion = async () => {
+    if (!selectedVersion) return;
+    try {
+      await apiService.loadModelVersion(selectedVersion);
+      alert('Model version loaded successfully!');
+      onOptimizationComplete('version_load', { version: selectedVersion });
+    } catch (error) {
+      alert(`Failed to load model version: ${error.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (isModelTrained) {
+      loadOptimizationReport();
+      loadAvailableVersions();
+    }
+  }, [isModelTrained]);
+
+  if (!isModelTrained) {
+    return null;
+  }
+
+  return (
+    <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+      <div className="p-4">
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <div className="flex items-center">
+            <Settings className="w-5 h-5 mr-2 text-purple-600" />
+            <h3 className="font-semibold text-purple-900">Advanced Model Optimization</h3>
+            <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+              Pro Features
+            </span>
+          </div>
+          {showAdvanced ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 space-y-6">
+            {/* Optimization Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Hyperparameter Optimization */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center mb-3">
+                  <Sliders className="w-5 h-5 mr-2 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Hyperparameters</h4>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Optimize model parameters using Bayesian optimization
+                </p>
+                <button
+                  onClick={() => runOptimization('hyperparameters', { method: 'optuna', nTrials: 50 })}
+                  disabled={activeOptimizations.has('hyperparameters')}
+                  className="w-full px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {activeOptimizations.has('hyperparameters') ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                      Optimizing...
+                    </>
+                  ) : (
+                    'Optimize'
+                  )}
+                </button>
+              </div>
+
+              {/* Dynamic Weight Updates */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center mb-3">
+                  <BarChart2 className="w-5 h-5 mr-2 text-green-600" />
+                  <h4 className="font-medium text-gray-900">Ensemble Weights</h4>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Update model weights based on recent performance
+                </p>
+                <button
+                  onClick={() => runOptimization('weights')}
+                  disabled={activeOptimizations.has('weights')}
+                  className="w-full px-3 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {activeOptimizations.has('weights') ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Weights'
+                  )}
+                </button>
+              </div>
+
+              {/* Category-Specific Models */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center mb-3">
+                  <Layers className="w-5 h-5 mr-2 text-orange-600" />
+                  <h4 className="font-medium text-gray-900">Category Models</h4>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Train specialized models for each category
+                </p>
+                <button
+                  onClick={() => runOptimization('category')}
+                  disabled={activeOptimizations.has('category')}
+                  className="w-full px-3 py-2 bg-orange-600 text-white rounded text-sm font-medium hover:bg-orange-700 disabled:opacity-50 transition-colors"
+                >
+                  {activeOptimizations.has('category') ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                      Training...
+                    </>
+                  ) : (
+                    'Train Category Models'
+                  )}
+                </button>
+              </div>
+
+              {/* Model Drift Monitoring */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center mb-3">
+                  <Activity className="w-5 h-5 mr-2 text-red-600" />
+                  <h4 className="font-medium text-gray-900">Drift Monitor</h4>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Check for model performance degradation
+                </p>
+                <button
+                  onClick={() => runOptimization('drift')}
+                  disabled={activeOptimizations.has('drift')}
+                  className="w-full px-3 py-2 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {activeOptimizations.has('drift') ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
+                      Monitoring...
+                    </>
+                  ) : (
+                    'Monitor Drift'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Model Versioning */}
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <GitBranch className="w-5 h-5 mr-2 text-purple-600" />
+                  <h4 className="font-medium text-gray-900">Model Versioning</h4>
+                </div>
+                <button
+                  onClick={saveCurrentModel}
+                  className="px-3 py-2 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700 transition-colors"
+                >
+                  <History className="w-3 h-3 mr-1 inline" />
+                  Save Current Model
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <select
+                  value={selectedVersion}
+                  onChange={(e) => setSelectedVersion(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="">Select a model version...</option>
+                  {availableVersions.map(version => (
+                    <option key={version.version} value={version.version}>
+                      {version.version} {version.timestamp && `(${new Date(version.timestamp).toLocaleDateString()})`}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={loadModelVersion}
+                  disabled={!selectedVersion}
+                  className="px-4 py-2 bg-gray-600 text-white rounded text-sm font-medium hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                >
+                  Load Version
+                </button>
+              </div>
+            </div>
+
+            {/* Optimization Results */}
+            {optimizationResults && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <Award className="w-5 h-5 mr-2 text-yellow-600" />
+                  Recent Optimization Results
+                </h4>
+                <div className="space-y-2 text-sm">
+                  {Object.entries(optimizationResults).map(([type, result]) => (
+                    <div key={type} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="font-medium capitalize">{type.replace('_', ' ')}</span>
+                      <span className="text-green-600">✓ Completed</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Drift Report */}
+            {driftReport && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <TrendingDown className="w-5 h-5 mr-2 text-red-600" />
+                  Model Drift Analysis
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 bg-gray-50 rounded">
+                    <div className="font-medium">Current Performance</div>
+                    <div>MAE: {driftReport.current_performance?.mae?.toFixed(4) || 'N/A'}</div>
+                    <div>MAPE: {driftReport.current_performance?.mape?.toFixed(2) || 'N/A'}%</div>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded">
+                    <div className="font-medium">Recommendation</div>
+                    <div className={`font-semibold ${
+                      driftReport.retrain_recommended ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                      {driftReport.retrain_recommended ? 'Retrain Required' : 'Model Stable'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Optimization Report */}
+            {optimizationReport && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+                  Optimization Summary
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="text-center p-3 bg-blue-50 rounded">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {optimizationReport.learning_rate?.toFixed(3) || 'N/A'}
+                    </div>
+                    <div className="text-gray-600">Learning Rate</div>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 rounded">
+                    <div className="text-2xl font-bold text-green-600">
+                      {optimizationReport.category_models || 0}
+                    </div>
+                    <div className="text-gray-600">Category Models</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {optimizationReport.model_versions_saved || 0}
+                    </div>
+                    <div className="text-gray-600">Saved Versions</div>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 rounded">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {optimizationReport.performance_history?.length || 0}
+                    </div>
+                    <div className="text-gray-600">Performance History</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -363,7 +825,7 @@ function DataUploadSection({ onDataLoad, isLoading, currentStage, onStageComplet
       const result = await apiService.trainModel();
       
       console.log('✅ Model training successful:', result);
-      setModelTrained(true);
+      setModelTrained(true);  // ← Make sure this is here
       onStageComplete('training_complete', result);
     } catch (error) {
       console.error('❌ Model training failed:', error);
@@ -732,6 +1194,22 @@ function DataUploadSection({ onDataLoad, isLoading, currentStage, onStageComplet
         )}
       </div>
 
+
+      {/* Add after the existing Stage 4 in DataUploadSection: */}
+
+      {/* Stage 5: Advanced Optimization (Optional) */}
+      {modelTrained && (
+        <AdvancedOptimizationPanel
+          modelStatus={modelStatus}
+          onOptimizationComplete={(type, result) => {
+            console.log(`Optimization ${type} completed:`, result);
+            setOptimizationHistory(prev => [...prev, { type, result, timestamp: new Date() }]);
+          }}
+          brandConfig={brandConfig}
+          isModelTrained={modelTrained}
+        />
+      )}
+
       {/* Full Screen Loading Overlays with Enhanced Design */}
       {isLoadingTraining && (
         <div className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50">
@@ -967,6 +1445,170 @@ function AnalyticsDashboard({ salesData, onShowCategories, brandConfig, modelSta
         </div>
       )}
 
+      {/* Advanced Model Metrics Card */}
+      {brandConfig.optimization_report && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <Settings className="w-5 h-5 mr-2 text-purple-600" />
+            Advanced Model Optimization
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {Object.keys(brandConfig.optimization_report.current_weights || {}).length}
+              </div>
+              <div className="text-sm text-gray-600">Ensemble Models</div>
+              <div className="text-xs text-gray-500 mt-1">Dynamic weights</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {brandConfig.optimization_report.learning_rate?.toFixed(3) || 'N/A'}
+              </div>
+              <div className="text-sm text-gray-600">Learning Rate</div>
+              <div className="text-xs text-gray-500 mt-1">Adaptive optimization</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {brandConfig.optimization_report.category_models || 0}
+              </div>
+              <div className="text-sm text-gray-600">Category Models</div>
+              <div className="text-xs text-gray-500 mt-1">Specialized predictions</div>
+            </div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">
+                {brandConfig.optimization_report.model_versions_saved || 0}
+              </div>
+              <div className="text-sm text-gray-600">Model Versions</div>
+              <div className="text-xs text-gray-500 mt-1">Version control</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Optimization Controls */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Settings className="w-5 h-5 mr-2 text-purple-600" />
+          Advanced Optimization Controls
+          <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+            Pro Features
+          </span>
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Hyperparameter Optimization */}
+          <button
+            onClick={async () => {
+              try {
+                const result = await apiService.optimizeHyperparameters('optuna', 20);
+                alert(`✅ Hyperparameter optimization completed!\n${result.message}`);
+              } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+              }
+            }}
+            className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+          >
+            <Sliders className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+            <div className="text-sm font-medium text-blue-900">Optimize Parameters</div>
+            <div className="text-xs text-blue-700 mt-1">Bayesian optimization</div>
+          </button>
+
+          {/* Dynamic Weight Updates */}
+          <button
+            onClick={async () => {
+              try {
+                const result = await apiService.updateEnsembleWeights();
+                alert(`✅ Ensemble weights updated!\n${result.message}`);
+              } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+              }
+            }}
+            className="p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
+          >
+            <BarChart2 className="w-6 h-6 text-green-600 mx-auto mb-2" />
+            <div className="text-sm font-medium text-green-900">Update Weights</div>
+            <div className="text-xs text-green-700 mt-1">Dynamic ensemble</div>
+          </button>
+
+          {/* Category Models */}
+          <button
+            onClick={async () => {
+              try {
+                const result = await apiService.optimizeCategoryModels();
+                alert(`✅ Category models optimized!\n${result.message}`);
+              } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+              }
+            }}
+            className="p-4 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors"
+          >
+            <Layers className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+            <div className="text-sm font-medium text-orange-900">Category Models</div>
+            <div className="text-xs text-orange-700 mt-1">Specialized training</div>
+          </button>
+
+          {/* Model Drift Monitor */}
+          <button
+            onClick={async () => {
+              try {
+                const result = await apiService.monitorModelDrift();
+                const status = result.drift_report?.retrain_recommended ? 'Retrain Recommended' : 'Model Stable';
+                alert(`✅ Drift monitoring completed!\nStatus: ${status}`);
+              } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+              }
+            }}
+            className="p-4 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+          >
+            <Activity className="w-6 h-6 text-red-600 mx-auto mb-2" />
+            <div className="text-sm font-medium text-red-900">Monitor Drift</div>
+            <div className="text-xs text-red-700 mt-1">Performance check</div>
+          </button>
+        </div>
+
+        {/* Model Versioning */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+            <GitBranch className="w-4 h-4 mr-2 text-purple-600" />
+            Model Versioning
+          </h4>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={async () => {
+                try {
+                  const versionName = `optimized_${new Date().toISOString().split('T')[0]}`;
+                  const result = await apiService.saveModelVersion(versionName);
+                  alert(`✅ Model saved as: ${versionName}`);
+                } catch (error) {
+                  alert(`❌ Error: ${error.message}`);
+                }
+              }}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 transition-colors"
+            >
+              <History className="w-4 h-4 mr-1 inline" />
+              Save Current Model
+            </button>
+            
+            <button
+              onClick={async () => {
+                try {
+                  const result = await apiService.getOptimizationReport();
+                  console.log('Optimization Report:', result);
+                  alert(`✅ Optimization report loaded! Check console for details.`);
+                } catch (error) {
+                  alert(`❌ Error: ${error.message}`);
+                }
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4 mr-1 inline" />
+              Get Report
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Categories Distribution */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Product Categories Distribution</h3>
         <div className="space-y-4">
@@ -996,6 +1638,7 @@ function AnalyticsDashboard({ salesData, onShowCategories, brandConfig, modelSta
         </div>
       </div>
 
+      {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <div className="text-3xl font-bold text-blue-600">{salesData.length.toLocaleString()}</div>
@@ -1930,6 +2573,32 @@ function MultiDistributionPanel({ selectedProducts, distributions, forecasts, on
   );
 }
 
+// Add this new function to handle incremental learning:
+const handleIncrementalLearning = async (newSalesData) => {
+  try {
+    setIsLoading(true);
+    const result = await apiService.updateWithNewData(newSalesData, 100);
+    
+    // Update model status if retrain was triggered
+    if (result.incremental_data_size >= 100) {
+      setModelStatus('UPDATING');
+      // Trigger UI updates
+      setBrandConfig(prev => ({ 
+        ...prev, 
+        last_update: new Date().toISOString(),
+        incremental_samples: result.new_records_processed
+      }));
+    }
+    
+    return result;
+  } catch (error) {
+    setError(`Incremental learning failed: ${error.message}`);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 // Main Component
 function InitialStockDistribution() {
   // View State Management
@@ -1949,13 +2618,24 @@ function InitialStockDistribution() {
   const [isGeneratingDistribution, setIsGeneratingDistribution] = useState(false);
   const [error, setError] = useState(null);
   const [brandConfig, setBrandConfig] = useState({});
+
+  // Add these state variables to the main component:
+  const [optimizationStatus, setOptimizationStatus] = useState({
+    hyperparameters: 'not_run',
+    weights: 'not_run',
+    category_models: 'not_run',
+    drift_monitoring: 'not_run'
+  });
+  const [modelVersions, setModelVersions] = useState([]);
+  const [currentModelVersion, setCurrentModelVersion] = useState(null);
+  const [optimizationHistory, setOptimizationHistory] = useState([]);
   
   
   const handleStageComplete = async (stage, data) => {
     try {
-      
       setError(null);
       setIsLoading(true);
+      
       if (stage === 'training') {
         setBrandConfig(data.brand_config);
         setModelStatus('TRAINING_DATA_LOADED');
@@ -1974,11 +2654,22 @@ function InitialStockDistribution() {
         setModelStatus('READY');
         setCurrentView('analytics');
         setCurrentStage('ready');
+        
+        // Load optimization report
+        try {
+          const optimizationReport = await apiService.getOptimizationReport();
+          setBrandConfig(prev => ({ ...prev, optimization_report: optimizationReport.report }));
+        } catch (error) {
+          console.warn('Could not load optimization report:', error);
+        }
+        
         console.log('Model trained successfully:', data);
       }
     } catch (error) {
       setError(`Stage completion failed: ${error.message}`);
       setModelStatus('ERROR');
+    } finally {
+      setIsLoading(false);
     }
   };
 
