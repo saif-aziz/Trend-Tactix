@@ -2,33 +2,33 @@
   "category": "Boys Kurta",
   "params": {
     "rf": {
-      "n_estimators": 246,
-      "max_depth": 10,
-      "min_samples_split": 5,
-      "min_samples_leaf": 4,
+      "n_estimators": 335,
+      "max_depth": 7,
+      "min_samples_split": 13,
+      "min_samples_leaf": 8,
       "max_features": null
     },
     "xgb": {
-      "n_estimators": 357,
-      "max_depth": 7,
-      "learning_rate": 0.1165650207959659,
-      "subsample": 0.9354567714991306,
-      "colsample_bytree": 0.9136999261712803,
-      "reg_alpha": 0.4640210226552585,
-      "reg_lambda": 0.913638735481071
+      "n_estimators": 217,
+      "max_depth": 4,
+      "learning_rate": 0.22753410833102422,
+      "subsample": 0.843960680251776,
+      "colsample_bytree": 0.6283828438718844,
+      "reg_alpha": 0.6678754605694062,
+      "reg_lambda": 0.32368690377937703
     },
     "lgb": {
-      "n_estimators": 353,
-      "max_depth": 10,
-      "learning_rate": 0.07777267287467353,
-      "subsample": 0.826534387070045,
-      "colsample_bytree": 0.9806376322257158,
-      "reg_alpha": 0.9723170800627217,
-      "reg_lambda": 0.31264166835114016
+      "n_estimators": 478,
+      "max_depth": 6,
+      "learning_rate": 0.0889569780881829,
+      "subsample": 0.8732355773040739,
+      "colsample_bytree": 0.6719450348318123,
+      "reg_alpha": 0.5347234248708893,
+      "reg_lambda": 0.7556837053956018
     }
   },
-  "performance": 0.1291444421961472,
-  "samples": 185,
+  "performance": 0.08911277880139172,
+  "samples": 98,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

@@ -2,33 +2,33 @@
   "category": "Girls Polo Shirt",
   "params": {
     "rf": {
-      "n_estimators": 426,
-      "max_depth": 19,
-      "min_samples_split": 11,
-      "min_samples_leaf": 1,
-      "max_features": "sqrt"
+      "n_estimators": 161,
+      "max_depth": 5,
+      "min_samples_split": 4,
+      "min_samples_leaf": 2,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 224,
-      "max_depth": 7,
-      "learning_rate": 0.1839123736856994,
-      "subsample": 0.6846573337303137,
-      "colsample_bytree": 0.6143417716790306,
-      "reg_alpha": 0.8621577723978896,
-      "reg_lambda": 0.9728938675292882
+      "n_estimators": 424,
+      "max_depth": 10,
+      "learning_rate": 0.14018234433731505,
+      "subsample": 0.9650048185337439,
+      "colsample_bytree": 0.9431249565446143,
+      "reg_alpha": 0.43202653817251524,
+      "reg_lambda": 0.13600130267980237
     },
     "lgb": {
-      "n_estimators": 176,
-      "max_depth": 7,
-      "learning_rate": 0.2315834752546827,
-      "subsample": 0.6086199627107454,
-      "colsample_bytree": 0.8684089769258747,
-      "reg_alpha": 0.6008539627404339,
-      "reg_lambda": 0.5090092031384107
+      "n_estimators": 185,
+      "max_depth": 8,
+      "learning_rate": 0.025787724326857005,
+      "subsample": 0.8820790532683906,
+      "colsample_bytree": 0.7740330129412993,
+      "reg_alpha": 0.7507064975224186,
+      "reg_lambda": 0.1633392476467267
     }
   },
-  "performance": 0.08333333333333333,
-  "samples": 80,
+  "performance": 0.0,
+  "samples": 66,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

@@ -2,33 +2,33 @@
   "category": "Boys Hood",
   "params": {
     "rf": {
-      "n_estimators": 384,
-      "max_depth": 10,
-      "min_samples_split": 19,
+      "n_estimators": 265,
+      "max_depth": 9,
+      "min_samples_split": 6,
       "min_samples_leaf": 6,
-      "max_features": "log2"
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 492,
-      "max_depth": 6,
-      "learning_rate": 0.2979662149013223,
-      "subsample": 0.982204926306399,
-      "colsample_bytree": 0.706200839886426,
-      "reg_alpha": 0.8038157692298914,
-      "reg_lambda": 0.7881489671286617
+      "n_estimators": 209,
+      "max_depth": 4,
+      "learning_rate": 0.29712237926909346,
+      "subsample": 0.935063519011203,
+      "colsample_bytree": 0.7544200218374613,
+      "reg_alpha": 0.5833056024154875,
+      "reg_lambda": 0.620330465210587
     },
     "lgb": {
-      "n_estimators": 271,
-      "max_depth": 5,
-      "learning_rate": 0.21904658892158746,
-      "subsample": 0.8858066318182366,
-      "colsample_bytree": 0.8435856009198806,
-      "reg_alpha": 0.6273917992383666,
-      "reg_lambda": 0.008874147969467262
+      "n_estimators": 156,
+      "max_depth": 8,
+      "learning_rate": 0.15108622837862168,
+      "subsample": 0.7240502149089211,
+      "colsample_bytree": 0.7613059716115628,
+      "reg_alpha": 0.9926504000631668,
+      "reg_lambda": 0.33861251931910574
     }
   },
-  "performance": 0.9834510724538125,
-  "samples": 164,
+  "performance": 0.3895949893874258,
+  "samples": 65,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

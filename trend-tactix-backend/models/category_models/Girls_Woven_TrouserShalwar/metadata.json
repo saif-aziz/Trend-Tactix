@@ -2,33 +2,33 @@
   "category": "Girls Woven Trouser/Shalwar",
   "params": {
     "rf": {
-      "n_estimators": 181,
-      "max_depth": 16,
-      "min_samples_split": 18,
-      "min_samples_leaf": 4,
-      "max_features": "sqrt"
+      "n_estimators": 126,
+      "max_depth": 19,
+      "min_samples_split": 10,
+      "min_samples_leaf": 9,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 417,
-      "max_depth": 4,
-      "learning_rate": 0.2528322296653345,
-      "subsample": 0.8709194797407549,
-      "colsample_bytree": 0.9463617162301226,
-      "reg_alpha": 0.7595975956712427,
-      "reg_lambda": 0.9893373328257602
+      "n_estimators": 420,
+      "max_depth": 3,
+      "learning_rate": 0.2498425927398718,
+      "subsample": 0.89809041774303,
+      "colsample_bytree": 0.9641234023803233,
+      "reg_alpha": 0.049890612615194674,
+      "reg_lambda": 0.48840449965884813
     },
     "lgb": {
-      "n_estimators": 234,
-      "max_depth": 4,
-      "learning_rate": 0.014144735154195072,
-      "subsample": 0.9632356627347747,
-      "colsample_bytree": 0.8459012025429157,
-      "reg_alpha": 0.7840727447457041,
-      "reg_lambda": 0.7702860539338884
+      "n_estimators": 257,
+      "max_depth": 10,
+      "learning_rate": 0.15983495338086895,
+      "subsample": 0.8121235262530176,
+      "colsample_bytree": 0.6875209752869256,
+      "reg_alpha": 0.3179190374984816,
+      "reg_lambda": 0.7892509507904114
     }
   },
-  "performance": 0.06885085739754138,
-  "samples": 75,
+  "performance": 0.0,
+  "samples": 74,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

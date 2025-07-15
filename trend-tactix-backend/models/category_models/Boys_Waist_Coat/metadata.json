@@ -2,32 +2,32 @@
   "category": "Boys Waist Coat",
   "params": {
     "rf": {
-      "n_estimators": 181,
-      "max_depth": 15,
-      "min_samples_split": 2,
-      "min_samples_leaf": 6,
+      "n_estimators": 297,
+      "max_depth": 18,
+      "min_samples_split": 6,
+      "min_samples_leaf": 3,
       "max_features": null
     },
     "xgb": {
-      "n_estimators": 488,
-      "max_depth": 4,
-      "learning_rate": 0.29340619875588353,
-      "subsample": 0.7444362134739801,
-      "colsample_bytree": 0.6219252903134479,
-      "reg_alpha": 0.22315277025104208,
-      "reg_lambda": 0.5761824134950354
+      "n_estimators": 192,
+      "max_depth": 5,
+      "learning_rate": 0.010177679216112151,
+      "subsample": 0.7110023605597777,
+      "colsample_bytree": 0.8637329469640875,
+      "reg_alpha": 0.7546748295193659,
+      "reg_lambda": 0.531593510518449
     },
     "lgb": {
-      "n_estimators": 373,
-      "max_depth": 5,
-      "learning_rate": 0.1896123503195368,
-      "subsample": 0.7097831230316503,
-      "colsample_bytree": 0.998880877986363,
-      "reg_alpha": 0.6051837350094079,
-      "reg_lambda": 0.27864675815691453
+      "n_estimators": 229,
+      "max_depth": 10,
+      "learning_rate": 0.22299724799747747,
+      "subsample": 0.6609230930887319,
+      "colsample_bytree": 0.6537551176503092,
+      "reg_alpha": 0.44645025498929336,
+      "reg_lambda": 0.5894268695612733
     }
   },
-  "performance": 0.2323591599988186,
+  "performance": 0.23654913956253046,
   "samples": 86,
   "feature_columns": [
     "total_sales",

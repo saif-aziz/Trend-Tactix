@@ -2,33 +2,33 @@
   "category": "Girls Knit Top",
   "params": {
     "rf": {
-      "n_estimators": 134,
-      "max_depth": 11,
-      "min_samples_split": 16,
-      "min_samples_leaf": 8,
+      "n_estimators": 101,
+      "max_depth": 15,
+      "min_samples_split": 20,
+      "min_samples_leaf": 2,
       "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 273,
-      "max_depth": 5,
-      "learning_rate": 0.2349282657529044,
-      "subsample": 0.6634709747685619,
-      "colsample_bytree": 0.6419069499769728,
-      "reg_alpha": 0.6410502491841245,
-      "reg_lambda": 0.903371792694449
+      "n_estimators": 254,
+      "max_depth": 7,
+      "learning_rate": 0.22950807695525322,
+      "subsample": 0.7130825574668189,
+      "colsample_bytree": 0.7511802323156647,
+      "reg_alpha": 0.8210803897910345,
+      "reg_lambda": 0.5462925569333135
     },
     "lgb": {
-      "n_estimators": 169,
-      "max_depth": 4,
-      "learning_rate": 0.01109374088171928,
-      "subsample": 0.8275069187214565,
-      "colsample_bytree": 0.7749108634472255,
-      "reg_alpha": 0.5472195994921825,
-      "reg_lambda": 0.6277852418764636
+      "n_estimators": 358,
+      "max_depth": 5,
+      "learning_rate": 0.1302795884220163,
+      "subsample": 0.6741496258350039,
+      "colsample_bytree": 0.7454873504975503,
+      "reg_alpha": 0.8392084132057522,
+      "reg_lambda": 0.10382228802558147
     }
   },
-  "performance": 0.4799100235676694,
-  "samples": 1361,
+  "performance": 0.2980945719620285,
+  "samples": 869,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

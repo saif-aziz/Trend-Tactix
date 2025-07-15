@@ -2,33 +2,33 @@
   "category": "Girls Woven Top",
   "params": {
     "rf": {
-      "n_estimators": 371,
-      "max_depth": 11,
-      "min_samples_split": 20,
-      "min_samples_leaf": 4,
-      "max_features": "log2"
+      "n_estimators": 102,
+      "max_depth": 9,
+      "min_samples_split": 2,
+      "min_samples_leaf": 6,
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 467,
-      "max_depth": 10,
-      "learning_rate": 0.2257163862550974,
-      "subsample": 0.9321112504178375,
-      "colsample_bytree": 0.891608936624237,
-      "reg_alpha": 0.9033731018729255,
-      "reg_lambda": 0.7688511453162693
+      "n_estimators": 385,
+      "max_depth": 5,
+      "learning_rate": 0.195931059135692,
+      "subsample": 0.7353466187180577,
+      "colsample_bytree": 0.8819398379084866,
+      "reg_alpha": 0.9964257140797522,
+      "reg_lambda": 0.3801190705554327
     },
     "lgb": {
-      "n_estimators": 159,
-      "max_depth": 9,
-      "learning_rate": 0.09824337028486185,
-      "subsample": 0.6707831727756484,
-      "colsample_bytree": 0.9746415696880533,
-      "reg_alpha": 0.878732750394105,
-      "reg_lambda": 0.8170905746766163
+      "n_estimators": 406,
+      "max_depth": 10,
+      "learning_rate": 0.2284303571304892,
+      "subsample": 0.8674068688196869,
+      "colsample_bytree": 0.9978934339796356,
+      "reg_alpha": 0.7010257906589377,
+      "reg_lambda": 0.0823013863250617
     }
   },
-  "performance": 0.41270208749600484,
-  "samples": 1267,
+  "performance": 0.06543749683034665,
+  "samples": 770,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

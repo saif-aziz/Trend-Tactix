@@ -2,32 +2,32 @@
   "category": "Girls Sweater",
   "params": {
     "rf": {
-      "n_estimators": 134,
-      "max_depth": 13,
-      "min_samples_split": 15,
-      "min_samples_leaf": 9,
-      "max_features": "sqrt"
+      "n_estimators": 116,
+      "max_depth": 12,
+      "min_samples_split": 14,
+      "min_samples_leaf": 10,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 316,
-      "max_depth": 10,
-      "learning_rate": 0.10963175993033655,
-      "subsample": 0.733355599429552,
-      "colsample_bytree": 0.9404793038246826,
-      "reg_alpha": 0.8382171412491052,
-      "reg_lambda": 0.9653779550288762
+      "n_estimators": 250,
+      "max_depth": 8,
+      "learning_rate": 0.248089747601146,
+      "subsample": 0.9575639930211814,
+      "colsample_bytree": 0.8291457232548007,
+      "reg_alpha": 0.8700978955504428,
+      "reg_lambda": 0.3633926969642215
     },
     "lgb": {
-      "n_estimators": 486,
-      "max_depth": 4,
-      "learning_rate": 0.235120225667586,
-      "subsample": 0.6560093365633024,
-      "colsample_bytree": 0.8070408577399372,
-      "reg_alpha": 0.47747360156013474,
-      "reg_lambda": 0.16885327613966006
+      "n_estimators": 332,
+      "max_depth": 3,
+      "learning_rate": 0.20722553761837179,
+      "subsample": 0.6277031040154145,
+      "colsample_bytree": 0.6167073774077964,
+      "reg_alpha": 0.006070343792756394,
+      "reg_lambda": 0.008149427852062296
     }
   },
-  "performance": 0.945216032387712,
+  "performance": 0.9653823072889711,
   "samples": 85,
   "feature_columns": [
     "total_sales",

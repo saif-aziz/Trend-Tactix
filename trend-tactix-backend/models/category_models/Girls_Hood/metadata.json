@@ -2,32 +2,32 @@
   "category": "Girls Hood",
   "params": {
     "rf": {
-      "n_estimators": 406,
-      "max_depth": 5,
-      "min_samples_split": 14,
-      "min_samples_leaf": 7,
-      "max_features": "log2"
+      "n_estimators": 432,
+      "max_depth": 15,
+      "min_samples_split": 19,
+      "min_samples_leaf": 10,
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 252,
-      "max_depth": 3,
-      "learning_rate": 0.29867843153045287,
-      "subsample": 0.6126633176256947,
-      "colsample_bytree": 0.9425960356615997,
-      "reg_alpha": 0.5912704974077622,
-      "reg_lambda": 0.02601466533485329
+      "n_estimators": 431,
+      "max_depth": 6,
+      "learning_rate": 0.17887016740655196,
+      "subsample": 0.6216160656503217,
+      "colsample_bytree": 0.9906257839808198,
+      "reg_alpha": 0.88802880994784,
+      "reg_lambda": 0.6504767188739833
     },
     "lgb": {
-      "n_estimators": 123,
-      "max_depth": 3,
-      "learning_rate": 0.29980001998463657,
-      "subsample": 0.9112592850946919,
-      "colsample_bytree": 0.6056688173690534,
-      "reg_alpha": 0.999140757302549,
-      "reg_lambda": 0.5165655244033884
+      "n_estimators": 409,
+      "max_depth": 4,
+      "learning_rate": 0.2678801519133246,
+      "subsample": 0.8294223185479381,
+      "colsample_bytree": 0.9719661700001582,
+      "reg_alpha": 0.17327803452307855,
+      "reg_lambda": 0.9831115198561319
     }
   },
-  "performance": 0.5329326976156831,
+  "performance": 0.5668631676574906,
   "samples": 122,
   "feature_columns": [
     "total_sales",

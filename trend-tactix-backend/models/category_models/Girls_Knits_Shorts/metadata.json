@@ -2,32 +2,32 @@
   "category": "Girls Knits Shorts",
   "params": {
     "rf": {
-      "n_estimators": 490,
-      "max_depth": 12,
-      "min_samples_split": 16,
+      "n_estimators": 299,
+      "max_depth": 5,
+      "min_samples_split": 15,
       "min_samples_leaf": 10,
       "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 265,
-      "max_depth": 6,
-      "learning_rate": 0.20921290025210282,
-      "subsample": 0.9577497629558283,
-      "colsample_bytree": 0.8025102582965769,
-      "reg_alpha": 0.6393015011352142,
-      "reg_lambda": 0.6450359161171455
+      "n_estimators": 291,
+      "max_depth": 7,
+      "learning_rate": 0.12474051753166934,
+      "subsample": 0.8377029528666192,
+      "colsample_bytree": 0.8791204360383018,
+      "reg_alpha": 0.8920096258015057,
+      "reg_lambda": 0.682493209339792
     },
     "lgb": {
-      "n_estimators": 268,
-      "max_depth": 10,
-      "learning_rate": 0.25394200681001095,
-      "subsample": 0.7755450695478807,
-      "colsample_bytree": 0.6182459028925695,
-      "reg_alpha": 0.8548903297381382,
-      "reg_lambda": 0.17405746591858218
+      "n_estimators": 336,
+      "max_depth": 7,
+      "learning_rate": 0.010073695442803666,
+      "subsample": 0.9335145384947641,
+      "colsample_bytree": 0.8899732805722569,
+      "reg_alpha": 0.9874810935985926,
+      "reg_lambda": 0.16555321706134732
     }
   },
-  "performance": 0.10250470664886635,
+  "performance": 0.10262777840269906,
   "samples": 66,
   "feature_columns": [
     "total_sales",

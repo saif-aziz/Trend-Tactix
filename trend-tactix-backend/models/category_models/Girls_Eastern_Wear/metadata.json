@@ -2,33 +2,33 @@
   "category": "Girls Eastern Wear",
   "params": {
     "rf": {
-      "n_estimators": 133,
-      "max_depth": 16,
-      "min_samples_split": 12,
+      "n_estimators": 338,
+      "max_depth": 10,
+      "min_samples_split": 14,
       "min_samples_leaf": 4,
-      "max_features": "sqrt"
+      "max_features": "log2"
     },
     "xgb": {
-      "n_estimators": 354,
-      "max_depth": 7,
-      "learning_rate": 0.11728494803885375,
-      "subsample": 0.8253855154348978,
-      "colsample_bytree": 0.7238660324766636,
-      "reg_alpha": 0.8366701841647886,
-      "reg_lambda": 0.3432080854256983
+      "n_estimators": 384,
+      "max_depth": 8,
+      "learning_rate": 0.24784694393911896,
+      "subsample": 0.8135066966675061,
+      "colsample_bytree": 0.8499075034579511,
+      "reg_alpha": 0.852458413795733,
+      "reg_lambda": 0.8833445541584506
     },
     "lgb": {
-      "n_estimators": 480,
-      "max_depth": 8,
-      "learning_rate": 0.23602162610967561,
-      "subsample": 0.9736029730334597,
-      "colsample_bytree": 0.60303060078037,
-      "reg_alpha": 0.9495768737213999,
-      "reg_lambda": 0.2644094355612661
+      "n_estimators": 175,
+      "max_depth": 5,
+      "learning_rate": 0.014088512261527046,
+      "subsample": 0.6647537611066536,
+      "colsample_bytree": 0.6745813665162248,
+      "reg_alpha": 0.6285494394673322,
+      "reg_lambda": 0.8717345700564841
     }
   },
-  "performance": 0.1774971800934082,
-  "samples": 970,
+  "performance": 0.12606199129332288,
+  "samples": 534,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

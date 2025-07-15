@@ -2,33 +2,33 @@
   "category": "Boys Polo",
   "params": {
     "rf": {
-      "n_estimators": 421,
-      "max_depth": 5,
-      "min_samples_split": 6,
-      "min_samples_leaf": 8,
-      "max_features": "log2"
+      "n_estimators": 218,
+      "max_depth": 8,
+      "min_samples_split": 12,
+      "min_samples_leaf": 3,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 346,
-      "max_depth": 4,
-      "learning_rate": 0.25661591498491826,
-      "subsample": 0.9233131910700644,
-      "colsample_bytree": 0.6031324209562487,
-      "reg_alpha": 0.49164325962336247,
-      "reg_lambda": 0.452314876415279
+      "n_estimators": 269,
+      "max_depth": 7,
+      "learning_rate": 0.02332376565042129,
+      "subsample": 0.8201949813354886,
+      "colsample_bytree": 0.9146420502030276,
+      "reg_alpha": 0.8980091431044748,
+      "reg_lambda": 0.6086063603170657
     },
     "lgb": {
-      "n_estimators": 166,
+      "n_estimators": 227,
       "max_depth": 4,
-      "learning_rate": 0.015116179937079033,
-      "subsample": 0.6101760672453862,
-      "colsample_bytree": 0.663816208706685,
-      "reg_alpha": 0.20120549587461845,
-      "reg_lambda": 0.7591910947930036
+      "learning_rate": 0.11907132895470934,
+      "subsample": 0.735705831137389,
+      "colsample_bytree": 0.639411384642156,
+      "reg_alpha": 0.36958291482209993,
+      "reg_lambda": 0.5573146959408933
     }
   },
-  "performance": 0.42768181485725504,
-  "samples": 752,
+  "performance": 0.03888888888888889,
+  "samples": 483,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

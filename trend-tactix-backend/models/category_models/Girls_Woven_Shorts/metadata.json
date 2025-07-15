@@ -2,33 +2,33 @@
   "category": "Girls Woven Shorts",
   "params": {
     "rf": {
-      "n_estimators": 164,
-      "max_depth": 16,
-      "min_samples_split": 12,
-      "min_samples_leaf": 9,
+      "n_estimators": 359,
+      "max_depth": 10,
+      "min_samples_split": 18,
+      "min_samples_leaf": 2,
       "max_features": "log2"
     },
     "xgb": {
-      "n_estimators": 499,
-      "max_depth": 10,
-      "learning_rate": 0.16839318505647846,
-      "subsample": 0.6272426664372356,
-      "colsample_bytree": 0.9784025058878347,
-      "reg_alpha": 0.2663960684701888,
-      "reg_lambda": 0.47369999841146093
+      "n_estimators": 122,
+      "max_depth": 3,
+      "learning_rate": 0.10612139476472808,
+      "subsample": 0.6041804235528891,
+      "colsample_bytree": 0.6763179312863502,
+      "reg_alpha": 0.12169501173323449,
+      "reg_lambda": 0.7389402552799182
     },
     "lgb": {
-      "n_estimators": 372,
-      "max_depth": 7,
-      "learning_rate": 0.03773276655096398,
-      "subsample": 0.755151685698095,
-      "colsample_bytree": 0.7247213248652523,
-      "reg_alpha": 0.8264226490292967,
-      "reg_lambda": 0.6005903625095973
+      "n_estimators": 297,
+      "max_depth": 5,
+      "learning_rate": 0.2626749854694439,
+      "subsample": 0.8634570444233444,
+      "colsample_bytree": 0.6212396643913435,
+      "reg_alpha": 0.19166508474185562,
+      "reg_lambda": 0.8682652100834147
     }
   },
-  "performance": 0.012345679012345678,
-  "samples": 111,
+  "performance": 0.0,
+  "samples": 72,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

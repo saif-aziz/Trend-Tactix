@@ -2,33 +2,33 @@
   "category": "Boys Knit Top",
   "params": {
     "rf": {
-      "n_estimators": 275,
-      "max_depth": 17,
-      "min_samples_split": 18,
-      "min_samples_leaf": 9,
+      "n_estimators": 195,
+      "max_depth": 5,
+      "min_samples_split": 5,
+      "min_samples_leaf": 8,
       "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 283,
+      "n_estimators": 481,
       "max_depth": 8,
-      "learning_rate": 0.16675813130459027,
-      "subsample": 0.6731782824758588,
-      "colsample_bytree": 0.6564702950639884,
-      "reg_alpha": 0.19880437368801818,
-      "reg_lambda": 0.029573956061600626
+      "learning_rate": 0.011802917295057024,
+      "subsample": 0.6026532697570635,
+      "colsample_bytree": 0.6169268872953869,
+      "reg_alpha": 0.09368473427006951,
+      "reg_lambda": 0.4138644297223965
     },
     "lgb": {
-      "n_estimators": 223,
+      "n_estimators": 112,
       "max_depth": 8,
-      "learning_rate": 0.010971837038551754,
-      "subsample": 0.887440912062388,
-      "colsample_bytree": 0.9016239962028125,
-      "reg_alpha": 0.7591040859119047,
-      "reg_lambda": 0.5823304520769709
+      "learning_rate": 0.12240607498205155,
+      "subsample": 0.6167875272657742,
+      "colsample_bytree": 0.727048255783379,
+      "reg_alpha": 0.42390698908007757,
+      "reg_lambda": 0.5997078170212855
     }
   },
-  "performance": 0.4028958677255543,
-  "samples": 1588,
+  "performance": 0.4418412684681213,
+  "samples": 1011,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

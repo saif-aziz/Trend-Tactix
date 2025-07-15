@@ -2,33 +2,33 @@
   "category": "Boys Jacket",
   "params": {
     "rf": {
-      "n_estimators": 201,
-      "max_depth": 20,
-      "min_samples_split": 7,
-      "min_samples_leaf": 8,
+      "n_estimators": 426,
+      "max_depth": 14,
+      "min_samples_split": 10,
+      "min_samples_leaf": 10,
       "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 117,
-      "max_depth": 4,
-      "learning_rate": 0.2994205187349476,
-      "subsample": 0.6764470447198865,
-      "colsample_bytree": 0.8768832917209101,
-      "reg_alpha": 0.04246423076050505,
-      "reg_lambda": 0.3735028651850594
+      "n_estimators": 427,
+      "max_depth": 8,
+      "learning_rate": 0.2652411199097169,
+      "subsample": 0.6622404302581261,
+      "colsample_bytree": 0.97709419250161,
+      "reg_alpha": 0.46519753245086437,
+      "reg_lambda": 0.1318229471841721
     },
     "lgb": {
-      "n_estimators": 483,
-      "max_depth": 10,
-      "learning_rate": 0.29900399127617505,
-      "subsample": 0.9774612215597471,
-      "colsample_bytree": 0.886979647265957,
-      "reg_alpha": 0.707435899703132,
-      "reg_lambda": 0.35519900089198325
+      "n_estimators": 253,
+      "max_depth": 8,
+      "learning_rate": 0.15550453772218695,
+      "subsample": 0.7152642052770939,
+      "colsample_bytree": 0.7440309529916934,
+      "reg_alpha": 0.41429054290350154,
+      "reg_lambda": 0.4032274103568947
     }
   },
-  "performance": 0.20862499269190135,
-  "samples": 371,
+  "performance": 0.08225184274336307,
+  "samples": 142,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

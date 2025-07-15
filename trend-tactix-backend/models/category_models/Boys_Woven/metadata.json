@@ -2,33 +2,33 @@
   "category": "Boys Woven",
   "params": {
     "rf": {
-      "n_estimators": 116,
-      "max_depth": 5,
-      "min_samples_split": 20,
-      "min_samples_leaf": 2,
-      "max_features": null
+      "n_estimators": 148,
+      "max_depth": 12,
+      "min_samples_split": 5,
+      "min_samples_leaf": 4,
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 113,
-      "max_depth": 6,
-      "learning_rate": 0.2648197564563867,
-      "subsample": 0.8768999621407998,
-      "colsample_bytree": 0.762798609500906,
-      "reg_alpha": 0.05894953572128628,
-      "reg_lambda": 0.6955928319101968
+      "n_estimators": 356,
+      "max_depth": 7,
+      "learning_rate": 0.19790655051892,
+      "subsample": 0.8685416666769145,
+      "colsample_bytree": 0.6409177735886162,
+      "reg_alpha": 0.5282941900415368,
+      "reg_lambda": 0.9639215094467055
     },
     "lgb": {
-      "n_estimators": 301,
-      "max_depth": 10,
-      "learning_rate": 0.2182888637020003,
-      "subsample": 0.9956887906291463,
-      "colsample_bytree": 0.9612009388361804,
-      "reg_alpha": 0.9919639328245836,
-      "reg_lambda": 0.6216020280230132
+      "n_estimators": 135,
+      "max_depth": 6,
+      "learning_rate": 0.012852661342450437,
+      "subsample": 0.821689186517937,
+      "colsample_bytree": 0.8883759069497329,
+      "reg_alpha": 0.6892621206673406,
+      "reg_lambda": 0.6974640368288121
     }
   },
-  "performance": 0.33356943454118343,
-  "samples": 1270,
+  "performance": 0.6488682084307563,
+  "samples": 754,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

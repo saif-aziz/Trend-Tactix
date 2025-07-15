@@ -2,33 +2,33 @@
   "category": "Girls Pant",
   "params": {
     "rf": {
-      "n_estimators": 412,
-      "max_depth": 9,
-      "min_samples_split": 4,
-      "min_samples_leaf": 8,
-      "max_features": "sqrt"
+      "n_estimators": 493,
+      "max_depth": 11,
+      "min_samples_split": 8,
+      "min_samples_leaf": 2,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 390,
-      "max_depth": 4,
-      "learning_rate": 0.1407477580881403,
-      "subsample": 0.9432002185624855,
-      "colsample_bytree": 0.8131402834564649,
-      "reg_alpha": 0.899137719933631,
-      "reg_lambda": 0.4188785541611296
+      "n_estimators": 300,
+      "max_depth": 3,
+      "learning_rate": 0.18323035740448132,
+      "subsample": 0.7572922304319121,
+      "colsample_bytree": 0.940971593359643,
+      "reg_alpha": 0.16480621107461876,
+      "reg_lambda": 0.44369163365012565
     },
     "lgb": {
-      "n_estimators": 128,
-      "max_depth": 3,
-      "learning_rate": 0.21055568040364933,
-      "subsample": 0.7381624911924016,
-      "colsample_bytree": 0.9570946534737732,
-      "reg_alpha": 0.5146345310339621,
-      "reg_lambda": 0.1918380282636305
+      "n_estimators": 265,
+      "max_depth": 8,
+      "learning_rate": 0.1520132874597887,
+      "subsample": 0.6641140221276048,
+      "colsample_bytree": 0.934422553709389,
+      "reg_alpha": 0.4727327254794481,
+      "reg_lambda": 0.6446416835215707
     }
   },
-  "performance": 0.7088206950869892,
-  "samples": 487,
+  "performance": 0.8976168373852632,
+  "samples": 303,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

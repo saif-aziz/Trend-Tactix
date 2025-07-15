@@ -2,33 +2,33 @@
   "category": "Boys Pant",
   "params": {
     "rf": {
-      "n_estimators": 112,
-      "max_depth": 17,
-      "min_samples_split": 15,
+      "n_estimators": 116,
+      "max_depth": 5,
+      "min_samples_split": 6,
       "min_samples_leaf": 1,
       "max_features": null
     },
     "xgb": {
-      "n_estimators": 264,
-      "max_depth": 3,
-      "learning_rate": 0.03360398143409239,
-      "subsample": 0.6553021429134379,
-      "colsample_bytree": 0.6035333021503696,
-      "reg_alpha": 5.7907345170995356e-05,
-      "reg_lambda": 0.022723500745325254
+      "n_estimators": 323,
+      "max_depth": 6,
+      "learning_rate": 0.17479366028086651,
+      "subsample": 0.621919381705411,
+      "colsample_bytree": 0.9960970364019828,
+      "reg_alpha": 0.013397854156962888,
+      "reg_lambda": 0.6483355984468535
     },
     "lgb": {
-      "n_estimators": 327,
-      "max_depth": 5,
-      "learning_rate": 0.11879950513623883,
-      "subsample": 0.9883996305150528,
-      "colsample_bytree": 0.9111743095326001,
-      "reg_alpha": 0.9524707024770522,
-      "reg_lambda": 0.007538232527164901
+      "n_estimators": 498,
+      "max_depth": 10,
+      "learning_rate": 0.13739580436035415,
+      "subsample": 0.9991035387454257,
+      "colsample_bytree": 0.9900030082995177,
+      "reg_alpha": 0.011720962617542185,
+      "reg_lambda": 0.010331405549570571
     }
   },
-  "performance": 0.841373162860199,
-  "samples": 907,
+  "performance": 1.1973989630825503,
+  "samples": 503,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

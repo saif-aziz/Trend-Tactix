@@ -162,6 +162,22 @@ const sampleUsers = [
     },
     lastActive: '2025-05-15',
     joinDate: '2022-11-12'
+  },
+  {
+    id: 11,
+    name: 'Anas Tanvir',
+    email: 'anas.tanvir@company.com',
+    role: 'Chief Finance Officer',
+    shop: 'All Shops',
+    status: 'active',
+    permissions: {
+      dashboard: 'edit',
+      analytics: 'edit',
+      inventory: 'edit',
+      notifications: 'edit'
+    },
+    lastActive: '2025-05-15',
+    joinDate: '2022-11-12'
   }
 ];
 

@@ -2,33 +2,33 @@
   "category": "Girls Jacket",
   "params": {
     "rf": {
-      "n_estimators": 489,
-      "max_depth": 5,
-      "min_samples_split": 15,
-      "min_samples_leaf": 7,
-      "max_features": "log2"
+      "n_estimators": 179,
+      "max_depth": 8,
+      "min_samples_split": 7,
+      "min_samples_leaf": 5,
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 324,
-      "max_depth": 8,
-      "learning_rate": 0.08270698043286864,
-      "subsample": 0.813434365232547,
-      "colsample_bytree": 0.8709211862380786,
-      "reg_alpha": 0.9968180385613175,
-      "reg_lambda": 0.5238713313748977
+      "n_estimators": 158,
+      "max_depth": 7,
+      "learning_rate": 0.1879282619036943,
+      "subsample": 0.9925972588503871,
+      "colsample_bytree": 0.9647543535159966,
+      "reg_alpha": 0.7171992480457617,
+      "reg_lambda": 0.5130318425684338
     },
     "lgb": {
-      "n_estimators": 248,
-      "max_depth": 5,
-      "learning_rate": 0.01205377383635492,
-      "subsample": 0.9970556553935445,
-      "colsample_bytree": 0.6135035501507965,
-      "reg_alpha": 0.1860973164906398,
-      "reg_lambda": 0.6965321737978187
+      "n_estimators": 439,
+      "max_depth": 9,
+      "learning_rate": 0.056830961608174205,
+      "subsample": 0.8964844102016232,
+      "colsample_bytree": 0.8466437129758294,
+      "reg_alpha": 0.07084534537528042,
+      "reg_lambda": 0.06378887166942337
     }
   },
-  "performance": 0.29328933413761454,
-  "samples": 415,
+  "performance": 0.08771929824561403,
+  "samples": 152,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

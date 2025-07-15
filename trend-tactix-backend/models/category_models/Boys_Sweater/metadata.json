@@ -2,32 +2,32 @@
   "category": "Boys Sweater",
   "params": {
     "rf": {
-      "n_estimators": 313,
-      "max_depth": 17,
-      "min_samples_split": 2,
-      "min_samples_leaf": 7,
+      "n_estimators": 302,
+      "max_depth": 15,
+      "min_samples_split": 10,
+      "min_samples_leaf": 9,
       "max_features": "log2"
     },
     "xgb": {
-      "n_estimators": 299,
-      "max_depth": 7,
-      "learning_rate": 0.2229539609745455,
-      "subsample": 0.9260229699225311,
-      "colsample_bytree": 0.7493186736899448,
-      "reg_alpha": 0.8261900809592528,
-      "reg_lambda": 0.4087006394203353
-    },
-    "lgb": {
       "n_estimators": 361,
       "max_depth": 6,
-      "learning_rate": 0.11875086829730575,
-      "subsample": 0.8413230891713241,
-      "colsample_bytree": 0.6520113620194609,
-      "reg_alpha": 0.5221645677316108,
-      "reg_lambda": 0.18166975840633331
+      "learning_rate": 0.25059078352372943,
+      "subsample": 0.7294292186511074,
+      "colsample_bytree": 0.9285502256085301,
+      "reg_alpha": 0.9153578061248863,
+      "reg_lambda": 0.7339039212385441
+    },
+    "lgb": {
+      "n_estimators": 399,
+      "max_depth": 9,
+      "learning_rate": 0.08183035051015719,
+      "subsample": 0.9995694354115138,
+      "colsample_bytree": 0.9104637193841778,
+      "reg_alpha": 0.18518430476644593,
+      "reg_lambda": 0.38929800073857257
     }
   },
-  "performance": 0.7801601970921732,
+  "performance": 0.7646787146000892,
   "samples": 100,
   "feature_columns": [
     "total_sales",

@@ -59,7 +59,7 @@ def health_check():
             'prediction_data_status': prediction_status,
             'validation_status': validation_status,
             'brand_features': forecaster.brand_features if forecaster else [],
-            'prediction_horizon_days': forecaster.prediction_horizon if forecaster else 90,
+            'prediction_horizon_days': forecaster.prediction_horizon if forecaster else 365,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
@@ -75,7 +75,7 @@ def load_training_data():
         inventory_file = None
         
         # Get prediction horizon from request
-        prediction_horizon = int(request.form.get('prediction_horizon', 90))
+        prediction_horizon = int(request.form.get('prediction_horizon', 365))
         model_type = request.form.get('model_type', 'ensemble')
         
         # Check for uploaded files
@@ -312,9 +312,10 @@ def validate_model():
         print(f"🔍 Full traceback:\n{traceback.format_exc()}")
         return jsonify({'error': f'Model validation failed: {str(e)}'}), 500
 
+# this route called from jsx file for train model
 @app.route('/api/train-model', methods=['POST'])
 def train_model():
-    """Train the optimized forecasting model - FIXED VERSION"""
+    """Train the optimized forecasting model - ENHANCED for period-aware training"""
     global trained_model
     
     try:
@@ -334,20 +335,34 @@ def train_model():
         if train_end_date:
             train_end_date = pd.to_datetime(train_end_date)
         
-        # Create training features with REAL targets
-        print("Creating training features with real targets...")
+        # NEW: Check if prediction period is set for period-aware training
+        prediction_period = None
+        if hasattr(forecaster, 'prediction_start_date') and hasattr(forecaster, 'prediction_end_date'):
+            prediction_period = {
+                'start_date': forecaster.prediction_start_date.isoformat(),
+                'end_date': forecaster.prediction_end_date.isoformat(),
+                'type': getattr(forecaster, 'prediction_type', 'custom'),
+                'total_days': getattr(forecaster, 'prediction_horizon', 365)
+            }
+            print(f"🎯 PERIOD-AWARE training enabled for {prediction_period['type']} period")
+        else:
+            print("📅 Standard training (no prediction period set)")
+        
+        # Create training features with period awareness
+        print("Creating training features with period intelligence...")
         training_features = forecaster.create_training_features_with_temporal_split(
             sales_df=training_sales_data, 
             inventory_df=training_inventory_data, 
             train_end_date=train_end_date,
-            validation_split=validation_split
+            validation_split=validation_split,
+            prediction_period=prediction_period  # NEW PARAMETER
         )
         
         # Train ADVANCED ensemble model with proper feature preparation
         print("Training ADVANCED ensemble model...")
         model_params = data.get('model_params', {})
         
-        # Use the new advanced training method that handles categorical data properly
+        # Use the new advanced training method
         trained_model = forecaster.train_ensemble_model_advanced(
             training_features,
             model_params
@@ -369,7 +384,8 @@ def train_model():
         
         print("✅ Model trained successfully!")
         
-        return jsonify({
+        # Enhanced response with period info
+        response_data = {
             'message': 'Advanced optimized ensemble model trained successfully',
             'training_samples': len(training_features),
             'feature_count': len(forecaster.feature_columns),
@@ -381,8 +397,23 @@ def train_model():
                 'mean': round(training_features['target_demand'].mean(), 1)
             },
             'feature_importance': feature_importance.to_dict('records') if feature_importance is not None else [],
-            'validation_available': len(validation_results) > 0
-        })
+            'validation_available': len(validation_results) > 0,
+        }
+        
+        # Add period info if available
+        if prediction_period:
+            response_data['period_aware_training'] = {
+                'enabled': True,
+                'prediction_period': prediction_period,
+                'training_intelligence': 'Model trained on historical patterns from same periods'
+            }
+        else:
+            response_data['period_aware_training'] = {
+                'enabled': False,
+                'recommendation': 'Set prediction period before training for better seasonal intelligence'
+            }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         print(f"💥 ERROR in train_model: {str(e)}")
@@ -932,6 +963,283 @@ def generate_new_product_distribution(product_row, forecast):
     
     # Add these routes to your existing api_routes.py file
 
+
+# product-level prediction
+@app.route('/api/generate-product-level-predictions', methods=['POST'])
+def generate_product_level_predictions():
+    """Generate demand predictions at product level (aggregating SKUs by Product Name)"""
+    try:
+        if trained_model is None:
+            return jsonify({'error': 'Model must be trained first'}), 400
+        
+        if prediction_products_data is None:
+            return jsonify({'error': 'Prediction data must be loaded first'}), 400
+        
+        data = request.get_json() or {}
+        
+        # Get products to predict
+        product_names = data.get('product_names', [])
+        if not product_names:
+            # If no specific products, get all unique products
+            product_names = prediction_products_data['Product Name'].unique().tolist() if 'Product Name' in prediction_products_data.columns else []
+        
+        print(f"Generating product-level predictions for {len(product_names)} products...")
+        
+        product_predictions = []
+        
+        for product_name in product_names:
+            # Get all SKUs for this product
+            product_skus = prediction_products_data[
+                prediction_products_data['Product Name'] == product_name
+            ].copy()
+            
+            if len(product_skus) == 0:
+                continue
+            
+            print(f"Processing product: {product_name} ({len(product_skus)} SKUs)")
+            
+            # Generate predictions for all SKUs of this product
+            prediction_features = forecaster.create_enhanced_prediction_features(product_skus)
+            sku_predictions = forecaster.predict_demand_ensemble_advanced(prediction_features)
+            
+            # Aggregate SKU predictions to product level
+            total_product_demand = int(sku_predictions['predicted_demand'].sum())
+            avg_confidence = int(sku_predictions['confidence_score'].mean())
+            
+            # Determine product risk level
+            risk_distribution = sku_predictions['risk_level'].value_counts()
+            if risk_distribution.get('HIGH', 0) > len(sku_predictions) * 0.4:
+                product_risk = 'HIGH'
+            elif risk_distribution.get('LOW', 0) > len(sku_predictions) * 0.6:
+                product_risk = 'LOW'
+            else:
+                product_risk = 'MEDIUM'
+            
+            # Get product attributes from first SKU
+            first_sku = product_skus.iloc[0]
+            
+            # Create product prediction
+            product_prediction = {
+                'product_name': product_name,
+                'product_code_base': first_sku.get('Product Code', '').split('-')[0] if 'Product Code' in first_sku else '',
+                'category': first_sku.get('Category', 'Unknown'),
+                'total_predicted_demand': total_product_demand,
+                'avg_confidence_score': avg_confidence,
+                'product_risk_level': product_risk,
+                'total_skus': len(product_skus),
+                'sku_predictions': sku_predictions.to_dict('records'),
+                'product_reasoning': get_product_reasoning(product_name, total_product_demand, len(product_skus)),
+                'demand_distribution': {
+                    'min_sku_demand': int(sku_predictions['predicted_demand'].min()),
+                    'max_sku_demand': int(sku_predictions['predicted_demand'].max()),
+                    'avg_sku_demand': round(sku_predictions['predicted_demand'].mean(), 1)
+                },
+                'attributes': {
+                    'gender': first_sku.get('Gender', 'Unknown'),
+                    'season': first_sku.get('Season', 'Unknown'),
+                    'line_item': first_sku.get('LineItem', 'Unknown')
+                }
+            }
+            
+            product_predictions.append(product_prediction)
+        
+        # Sort by total demand descending
+        product_predictions.sort(key=lambda x: x['total_predicted_demand'], reverse=True)
+        
+        return jsonify({
+            'message': f'Product-level predictions generated for {len(product_predictions)} products',
+            'product_predictions': product_predictions,
+            'summary': {
+                'total_products': len(product_predictions),
+                'total_predicted_demand': sum(pp['total_predicted_demand'] for pp in product_predictions),
+                'total_skus_analyzed': sum(pp['total_skus'] for pp in product_predictions)
+            },
+            'model_info': {
+                'prediction_level': 'product_aggregated',
+                'aggregation_method': 'sku_sum'
+            }
+        })
+        
+    except Exception as e:
+        print(f"Product prediction error: {traceback.format_exc()}")
+        return jsonify({'error': f'Product prediction generation failed: {str(e)}'}), 500
+
+def get_product_reasoning(product_name, total_demand, total_skus):
+    """Generate reasoning for product-level predictions"""
+    avg_per_sku = total_demand / total_skus if total_skus > 0 else 0
+    
+    reasoning = f"Product-level AI forecast aggregating {total_skus} SKUs with average {avg_per_sku:.1f} units per SKU. "
+    
+    if total_skus > 10:
+        reasoning += "Large SKU variety indicates comprehensive size/color range. "
+    elif total_skus > 5:
+        reasoning += "Moderate SKU variety with good size/color options. "
+    else:
+        reasoning += "Focused SKU range with core variations. "
+    
+    if avg_per_sku > 10:
+        reasoning += "High per-SKU demand indicates strong product appeal."
+    elif avg_per_sku > 5:
+        reasoning += "Moderate per-SKU demand with balanced appeal."
+    else:
+        reasoning += "Conservative per-SKU demand with selective appeal."
+    
+    return reasoning
+
+
+
+# for prediction (category-level)
+# this API is called as a result of pressing the generate category forecast button(3rd pass)
+@app.route('/api/generate-category-predictions', methods=['POST'])
+def generate_category_predictions():
+    """Generate demand predictions at category level"""
+    try:
+        if trained_model is None:
+            return jsonify({'error': 'Model must be trained first'}), 400
+        
+        if prediction_products_data is None:
+            return jsonify({'error': 'Prediction data must be loaded first'}), 400
+        # Added debugging point
+        data = request.get_json() or {}
+        # Added debugging point
+        print(f"Data show")
+        print(data)
+        # breakpoint()
+        
+        # Get categories to predict
+        categories = data.get('categories', [])
+        if not categories:
+            # If no specific categories, get all categories
+            categories = prediction_products_data['Category'].unique().tolist()
+        # added debugger
+        print(f"category status")
+        print(categories)
+        # breakpoint()
+        print(f"Generating category-level predictions for {len(categories)} categories...")
+        
+        category_predictions = []
+        
+        for category in categories:
+            # Get all products in this category
+            category_products = prediction_products_data[
+                prediction_products_data['Category'] == category
+            ].copy()
+            
+             # added debugger
+            print(f"products in category status")
+            print(category_products)
+            # breakpoint()
+
+
+            if len(category_products) == 0:
+                continue
+            
+            print(f"Processing category: {category} ({len(category_products)} SKUs)")
+            
+            # Generate predictions for all SKUs in category
+            prediction_features = forecaster.create_enhanced_prediction_features(category_products)
+            # startDate = data.get('startDate', [])
+            # endDate = data.get('endDate', [])
+            # prediction_features = forecaster.create_seasonal_prediction_features(category_products)
+            sku_predictions = forecaster.predict_demand_ensemble_advanced(prediction_features)
+            
+            # Aggregate SKU predictions to category level
+            total_category_demand = int(sku_predictions['predicted_demand'].sum())
+            avg_confidence = int(sku_predictions['confidence_score'].mean())
+            
+            # Determine category risk level
+            risk_distribution = sku_predictions['risk_level'].value_counts()
+            if risk_distribution.get('HIGH', 0) > len(sku_predictions) * 0.4:
+                category_risk = 'HIGH'
+            elif risk_distribution.get('LOW', 0) > len(sku_predictions) * 0.6:
+                category_risk = 'LOW'
+            else:
+                category_risk = 'MEDIUM'
+            
+            # Get unique products count (group by Product Name)
+            unique_products = category_products['Product Name'].nunique() if 'Product Name' in category_products.columns else len(category_products)
+            total_skus = len(category_products)
+            
+            # Create category prediction
+            category_prediction = {
+                'category': category,
+                'total_predicted_demand': total_category_demand,
+                'avg_confidence_score': avg_confidence,
+                'category_risk_level': category_risk,
+                'total_skus': total_skus,
+                'unique_products': unique_products,
+                'sku_predictions': sku_predictions.to_dict('records'),
+                'category_reasoning': get_category_reasoning(category, total_category_demand, total_skus),
+                'demand_distribution': {
+                    'min_sku_demand': int(sku_predictions['predicted_demand'].min()),
+                    'max_sku_demand': int(sku_predictions['predicted_demand'].max()),
+                    'avg_sku_demand': round(sku_predictions['predicted_demand'].mean(), 1)
+                }
+            }
+            
+            category_predictions.append(category_prediction)
+        
+        # Sort by total demand descending
+        category_predictions.sort(key=lambda x: x['total_predicted_demand'], reverse=True)
+        
+        # Summary statistics
+        total_demand_all_categories = sum(cp['total_predicted_demand'] for cp in category_predictions)
+        total_skus_all_categories = sum(cp['total_skus'] for cp in category_predictions)
+        
+        return jsonify({
+            'message': f'Category-level predictions generated for {len(category_predictions)} categories',
+            'category_predictions': category_predictions,
+            'summary': {
+                'total_categories': len(category_predictions),
+                'total_predicted_demand': total_demand_all_categories,
+                'total_skus_analyzed': total_skus_all_categories,
+                'avg_demand_per_category': round(total_demand_all_categories / len(category_predictions), 1) if category_predictions else 0
+            },
+            'model_info': {
+                'ensemble_models': list(forecaster.models.keys()),
+                'prediction_level': 'category_aggregated',
+                'aggregation_method': 'sku_sum'
+            }
+        })
+        
+    except Exception as e:
+        print(f"Category prediction error: {traceback.format_exc()}")
+        return jsonify({'error': f'Category prediction generation failed: {str(e)}'}), 500
+
+def get_category_reasoning(category, total_demand, total_skus):
+        """Generate reasoning for category-level predictions"""
+        avg_per_sku = total_demand / total_skus if total_skus > 0 else 0
+        
+        reasoning_parts = []
+        
+        # Category-specific insights
+        if 'Under Garments' in category or 'Basic' in category:
+            reasoning_parts.append("high-frequency essentials category")
+        elif 'Top' in category or 'Pant' in category:
+            reasoning_parts.append("core apparel category with steady demand")
+        elif 'Dress' in category or 'Eastern' in category:
+            reasoning_parts.append("fashion category with seasonal variations")
+        elif 'Belt' in category or 'Accessories' in category:
+            reasoning_parts.append("accessories category with selective demand")
+        
+        # Volume insights
+        if total_skus > 50:
+            reasoning_parts.append(f"large category with {total_skus} SKUs")
+        elif total_skus > 20:
+            reasoning_parts.append(f"medium category with {total_skus} SKUs")
+        else:
+            reasoning_parts.append(f"focused category with {total_skus} SKUs")
+        
+        # Demand insights
+        if avg_per_sku > 15:
+            reasoning_parts.append("high per-SKU demand expected")
+        elif avg_per_sku > 8:
+            reasoning_parts.append("moderate per-SKU demand expected")
+        else:
+            reasoning_parts.append("conservative per-SKU demand expected")
+        
+        return f"Category-level AI forecast aggregating {total_skus} SKUs: {', '.join(reasoning_parts)}"
+
 @app.route('/api/optimize-hyperparameters', methods=['POST'])
 def optimize_hyperparameters():
     """Optimize model hyperparameters - FIXED VERSION"""
@@ -1078,7 +1386,7 @@ def update_ensemble_weights():
         
         # Get validation data (use recent period for weight updates)
         max_date = training_sales_data['Sale Date'].max()
-        val_start = max_date - timedelta(days=90)
+        val_start = max_date - timedelta(days=365)
         
         val_sales = training_sales_data[training_sales_data['Sale Date'] >= val_start]
         
@@ -1458,20 +1766,391 @@ def compare_model_versions():
         return jsonify({'error': f'Version comparison failed: {str(e)}'}), 500
 
 # Add this helper function for incremental learning
-def _create_features_from_sales(self, sales_df):
-    """Create features from new sales data for incremental learning"""
-    # This is a simplified version - you'd implement the full feature creation logic
-    features_df = sales_df.groupby('Product Code').agg({
-        'Sale Date': ['count', 'min', 'max']
-    }).reset_index()
+    def _create_features_from_sales(self, sales_df):
+        """Create features from new sales data for incremental learning"""
+        # This is a simplified version - you'd implement the full feature creation logic
+        features_df = sales_df.groupby('Product Code').agg({
+            'Sale Date': ['count', 'min', 'max']
+        }).reset_index()
+
+        # Flatten column names
+        features_df.columns = ['Product Code', 'total_sales', 'first_sale', 'last_sale']
+
+        # Create target (simplified)
+        features_df['target_demand'] = features_df['total_sales']
+
+        return features_df
+
+
+
+# Add these new routes to api_routes.py
+# for dynamic date selection for prediction
+@app.route('/api/set-prediction-period', methods=['POST'])
+def set_prediction_period():
+    """Set custom prediction period for demand forecasting"""
+    global forecaster
     
-    # Flatten column names
-    features_df.columns = ['Product Code', 'total_sales', 'first_sale', 'last_sale']
+    try:
+        if forecaster is None:
+            return jsonify({'error': 'Forecaster not initialized'}), 400
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
+        prediction_start = data.get('prediction_start')  # "2025-01-01"
+        prediction_end = data.get('prediction_end')      # "2025-03-31"
+        prediction_type = data.get('prediction_type', 'custom')  # 'winter', 'summer', 'full_year', 'custom'
+        
+        if not prediction_start or not prediction_end:
+            return jsonify({'error': 'Both prediction_start and prediction_end dates required'}), 400
+        
+        # Parse dates with error handling
+        try:
+            pred_start = pd.to_datetime(prediction_start)
+            pred_end = pd.to_datetime(prediction_end)
+        except Exception as e:
+            return jsonify({'error': f'Invalid date format: {str(e)}'}), 400
+            
+        prediction_days = (pred_end - pred_start).days + 1
+        
+        if prediction_days <= 0:
+            return jsonify({'error': 'End date must be after start date'}), 400
+        
+        # Store prediction period in forecaster - with error handling
+        try:
+            forecaster.prediction_start_date = pred_start
+            forecaster.prediction_end_date = pred_end
+            forecaster.prediction_horizon = prediction_days
+            forecaster.prediction_type = prediction_type
+            
+            # FIXED: Call the method correctly
+            if hasattr(forecaster, 'set_seasonal_context'):
+                forecaster.set_seasonal_context(pred_start, pred_end, prediction_type)
+        except Exception as e:
+            print(f"Error setting forecaster attributes: {e}")
+            # Continue anyway - this is not critical
+        
+        # Analyze historical data for this period - with error handling
+        historical_analysis = {}
+        try:
+            if training_sales_data is not None:
+                historical_analysis = analyze_historical_period_performance(
+                    training_sales_data, pred_start, pred_end, prediction_type
+                )
+            else:
+                historical_analysis = {'message': 'No training data available for historical analysis'}
+        except Exception as e:
+            print(f"Historical analysis failed: {e}")
+            historical_analysis = {'error': f'Historical analysis failed: {str(e)}'}
+        
+        return jsonify({
+            'message': f'Prediction period set successfully',
+            'prediction_period': {
+                'start_date': prediction_start,
+                'end_date': prediction_end,
+                'total_days': prediction_days,
+                'type': prediction_type,
+                'season_detected': detect_season_from_dates(pred_start, pred_end)
+            },
+            'historical_analysis': historical_analysis
+        })
+        
+    except Exception as e:
+        print(f"💥 ERROR in set_prediction_period: {str(e)}")
+        import traceback
+        print(f"📚 Full traceback:\n{traceback.format_exc()}")
+        return jsonify({'error': f'Failed to set prediction period: {str(e)}'}), 500
+
+
+def analyze_historical_period_performance(sales_df, pred_start, pred_end, prediction_type):
+    """Analyze historical performance for the same period in previous years"""
+    try:
+        if sales_df is None:
+            return {'message': 'No historical data available'}
+        
+        # Extract month/day range from prediction period
+        start_month_day = (pred_start.month, pred_start.day)
+        end_month_day = (pred_end.month, pred_end.day)
+        
+        # Find same periods in historical data
+        historical_periods = []
+        available_years = sorted(sales_df['Sale Date'].dt.year.unique())
+        target_year = pred_start.year
+        
+        for year in available_years:
+            if year < target_year:  # Only look at past years
+                try:
+                    hist_start = pd.Timestamp(year=year, month=pred_start.month, day=pred_start.day)
+                    hist_end = pd.Timestamp(year=year, month=pred_end.month, day=pred_end.day)
+                    
+                    # Handle year boundary crossing (e.g., Dec-Jan)
+                    if pred_end.month < pred_start.month:
+                        hist_end = pd.Timestamp(year=year+1, month=pred_end.month, day=pred_end.day)
+                    
+                    historical_periods.append({
+                        'year': year,
+                        'start': hist_start,
+                        'end': hist_end,
+                        'period_name': f"{year} {prediction_type}"
+                    })
+                except:
+                    continue
+        
+        # Analyze performance for each historical period
+        period_analysis = []
+        for period in historical_periods:
+            period_sales = sales_df[
+                (sales_df['Sale Date'] >= period['start']) & 
+                (sales_df['Sale Date'] <= period['end'])
+            ]
+            
+            if len(period_sales) > 0:
+                analysis = {
+                    'year': int(period['year']),  # Ensure int
+                    'period': period['period_name'],
+                    'total_sales': int(len(period_sales)),  # Ensure int
+                    'unique_products': int(period_sales['Product Code'].nunique()),  # Ensure int
+                    'avg_sales_per_product': float(len(period_sales) / max(period_sales['Product Code'].nunique(), 1)),  # Ensure float
+                    'top_categories': period_sales['Category'].value_counts().head(5).to_dict() if 'Category' in period_sales.columns else {},
+                    'daily_average': float(len(period_sales) / max(((period['end'] - period['start']).days + 1), 1))  # Ensure float
+                }
+                period_analysis.append(analysis)
+        
+        # Summary insights
+        if period_analysis:
+            avg_sales = np.mean([p['total_sales'] for p in period_analysis])
+            avg_products = np.mean([p['unique_products'] for p in period_analysis])
+            summary = {
+                    'historical_periods_found': len(period_analysis),
+                    'average_total_sales': round(float(avg_sales), 1),  # Convert to float
+                    'average_unique_products': round(float(avg_products), 1),  # Convert to float
+                    'trend': 'increasing' if len(period_analysis) > 1 and period_analysis[-1]['total_sales'] > period_analysis[0]['total_sales'] else 'stable',
+                    'seasonal_strength': 'high' if len(period_analysis) > 1 and max([p['total_sales'] for p in period_analysis]) > min([p['total_sales'] for p in period_analysis]) * 2 else 'moderate'
+                }
+        else:
+            summary = {'message': 'No historical data found for this period'}
+        
+        return {
+            'summary': summary,
+            'detailed_analysis': period_analysis[:3]  # Last 3 years max
+        }
+        
+    except Exception as e:
+        return {'error': f'Analysis failed: {str(e)}'}
+
+def detect_season_from_dates(start_date, end_date):
+    """Detect season from date range"""
+    start_month = start_date.month
+    end_month = end_date.month
     
-    # Create target (simplified)
-    features_df['target_demand'] = features_df['total_sales']
+    # Define seasons
+    if start_month in [12, 1, 2] and end_month in [12, 1, 2]:
+        return 'winter'
+    elif start_month in [3, 4, 5] and end_month in [3, 4, 5]:
+        return 'spring'
+    elif start_month in [6, 7, 8] and end_month in [6, 7, 8]:
+        return 'summer'
+    elif start_month in [9, 10, 11] and end_month in [9, 10, 11]:
+        return 'autumn'
+    elif (end_date - start_date).days > 300:
+        return 'full_year'
+    else:
+        return 'custom_period'
+
+@app.route('/api/get-prediction-period', methods=['GET'])
+def get_prediction_period():
+    """Get current prediction period settings"""
+    try:
+        if forecaster is None:
+            return jsonify({'error': 'Forecaster not initialized'}), 400
+        
+        if hasattr(forecaster, 'prediction_start_date'):
+            return jsonify({
+                'prediction_period': {
+                    'start_date': forecaster.prediction_start_date.isoformat(),
+                    'end_date': forecaster.prediction_end_date.isoformat(),
+                    'total_days': forecaster.prediction_horizon,
+                    'type': getattr(forecaster, 'prediction_type', 'custom')
+                }
+            })
+        else:
+            return jsonify({
+                'prediction_period': {
+                    'start_date': None,
+                    'end_date': None,
+                    'total_days': forecaster.prediction_horizon,
+                    'type': 'default'
+                }
+            })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generate-seasonal-predictions', methods=['POST'])
+def generate_seasonal_predictions():
+    """Generate predictions using seasonal intelligence"""
+    try:
+        if trained_model is None:
+            return jsonify({'error': 'Model must be trained first'}), 400
+        
+        if not hasattr(forecaster, 'prediction_start_date'):
+            return jsonify({'error': 'Prediction period must be set first'}), 400
+        
+        data = request.get_json() or {}
+        
+        # DEBUG: Log prediction period info
+        print(f"🌟 SEASONAL PREDICTION REQUEST:")
+        print(f"   Period: {forecaster.prediction_type}")
+        print(f"   Start: {forecaster.prediction_start_date}")
+        print(f"   End: {forecaster.prediction_end_date}")
+        print(f"   Days: {forecaster.prediction_horizon}")
+        
+        # Filter products if specific ones requested
+        product_codes = data.get('product_codes', [])
+        if product_codes:
+            filtered_products = prediction_products_data[
+                prediction_products_data['Product Code'].isin(product_codes)
+            ].copy()
+        else:
+            filtered_products = prediction_products_data.copy()
+        
+        if len(filtered_products) == 0:
+            return jsonify({'error': 'No products found for prediction'}), 400
+        
+        print(f"   Products to predict: {len(filtered_products)}")
+        
+        # IMPORTANT: Set seasonal context in forecaster
+        forecaster.set_seasonal_context(
+            forecaster.prediction_start_date,
+            forecaster.prediction_end_date,
+            forecaster.prediction_type
+        )
+        
+        # Create seasonal prediction features
+        print(f"📊 Creating SEASONAL prediction features for {forecaster.prediction_type} period...")
+        prediction_features = forecaster.create_seasonal_prediction_features(
+            filtered_products,
+            forecaster.prediction_start_date,
+            forecaster.prediction_end_date,
+            forecaster.prediction_type
+        )
+        
+        print(f"📊 Seasonal features created, sample estimates: {prediction_features.get('total_sales', pd.Series([0])).head().tolist()}")
+        
+        # Generate seasonal predictions with the advanced ensemble
+        print(f"🔮 Generating ADVANCED seasonal predictions...")
+        predictions = forecaster.predict_demand_ensemble_advanced(prediction_features)
+        
+        print(f"✅ Generated predictions: {len(predictions)} products")
+        print(f"   Sample predictions: {predictions['predicted_demand'].head().tolist()}")
+        print(f"   Prediction range: {predictions['predicted_demand'].min()} to {predictions['predicted_demand'].max()}")
+        
+        # Rest of the function remains the same...
+        detailed_predictions = filtered_products.merge(predictions, on='Product Code', how='left')
+        
+        predictions_list = []
+        for _, row in detailed_predictions.iterrows():
+            seasonal_factor = calculate_seasonal_factor(
+                row.get('Category', ''),
+                row.get('Season', ''),
+                forecaster.prediction_type
+            )
+            
+            prediction_dict = {
+                'product_code': row['Product Code'],
+                'product_name': row.get('Product Name', ''),
+                'category': row.get('Category', ''),
+                'predicted_demand': int(row['predicted_demand']),
+                'confidence_score': int(row['confidence_score']),
+                'risk_level': row['risk_level'],
+                'seasonal_factor': seasonal_factor,
+                'prediction_period': {
+                    'start': forecaster.prediction_start_date.isoformat(),
+                    'end': forecaster.prediction_end_date.isoformat(),
+                    'type': forecaster.prediction_type,
+                    'days': forecaster.prediction_horizon
+                },
+                'seasonal_reasoning': f"Seasonal prediction for {forecaster.prediction_type} period with {seasonal_factor}x factor",
+                'size': row.get('Size Name', ''),
+                'color': row.get('Color Name', ''),
+                'attributes': {
+                    'size_code': row.get('Size Code', ''),
+                    'color_code': row.get('Color Code', ''),
+                    'gender': row.get('Gender', ''),
+                    'season': row.get('Season', '')
+                }
+            }
+            predictions_list.append(prediction_dict)
+        
+        summary = {
+            'total_products': len(predictions_list),
+            'prediction_period': {
+                'start': forecaster.prediction_start_date.strftime('%Y-%m-%d'),
+                'end': forecaster.prediction_end_date.strftime('%Y-%m-%d'),
+                'total_days': forecaster.prediction_horizon,
+                'type': forecaster.prediction_type
+            },
+            'total_predicted_demand': int(predictions['predicted_demand'].sum()),
+            'avg_confidence': int(predictions['confidence_score'].mean()),
+            'seasonal_insights': {
+                'period_type': forecaster.prediction_type,
+                'seasonal_boost_applied': True,
+                'avg_seasonal_factor': np.mean([p['seasonal_factor'] for p in predictions_list])
+            }
+        }
+        
+        print(f"🎉 SEASONAL PREDICTIONS COMPLETE:")
+        print(f"   Total demand: {summary['total_predicted_demand']}")
+        print(f"   Avg seasonal factor: {summary['seasonal_insights']['avg_seasonal_factor']}")
+        
+        return jsonify({
+            'message': f'Seasonal predictions generated for {forecaster.prediction_type} period',
+            'predictions': predictions_list,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        print(f"💥 Seasonal prediction error: {traceback.format_exc()}")
+        return jsonify({'error': f'Seasonal prediction failed: {str(e)}'}), 500
+
+def calculate_seasonal_factor(category, season, prediction_type):
+    """Calculate seasonal multiplier for different periods"""
     
-    return features_df
+    base_factor = 1.0
+    
+    # Period-specific adjustments
+    if prediction_type == 'winter':
+        if 'Winter' in str(season):
+            base_factor = 1.8  # Strong winter boost
+        elif 'Open Season' in str(season):
+            base_factor = 1.3
+        else:
+            base_factor = 0.7  # Off-season
+    elif prediction_type == 'summer':
+        if 'Summer' in str(season):
+            base_factor = 1.7  # Strong summer boost
+        elif 'Open Season' in str(season):
+            base_factor = 1.3
+        else:
+            base_factor = 0.8
+    elif prediction_type == 'full_year':
+        base_factor = 1.4  # Year-round appeal
+    elif prediction_type in ['spring', 'autumn']:
+        base_factor = 1.2
+    
+    # Category-specific adjustments
+    if 'Under Garments' in str(category) or 'Basic' in str(category):
+        base_factor *= 1.1  # Consistent demand
+    elif 'Winter' in str(category) and prediction_type == 'winter':
+        base_factor *= 1.5
+    elif 'Summer' in str(category) and prediction_type == 'summer':
+        base_factor *= 1.5
+    
+    return round(base_factor, 2)
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

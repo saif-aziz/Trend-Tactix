@@ -2,33 +2,33 @@
   "category": "Girls Dress",
   "params": {
     "rf": {
-      "n_estimators": 246,
-      "max_depth": 16,
-      "min_samples_split": 10,
-      "min_samples_leaf": 8,
-      "max_features": "sqrt"
+      "n_estimators": 197,
+      "max_depth": 7,
+      "min_samples_split": 9,
+      "min_samples_leaf": 1,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 267,
-      "max_depth": 9,
-      "learning_rate": 0.13400346434563642,
-      "subsample": 0.7946483341552681,
-      "colsample_bytree": 0.7518816331718621,
-      "reg_alpha": 0.8617248146256304,
-      "reg_lambda": 0.9787881016304221
+      "n_estimators": 297,
+      "max_depth": 8,
+      "learning_rate": 0.1773468094613481,
+      "subsample": 0.8563320421592564,
+      "colsample_bytree": 0.7332718982942198,
+      "reg_alpha": 0.8547301856316127,
+      "reg_lambda": 0.6927501687455861
     },
     "lgb": {
-      "n_estimators": 456,
-      "max_depth": 6,
-      "learning_rate": 0.017840153703840927,
-      "subsample": 0.6042896419569974,
-      "colsample_bytree": 0.9751908871341238,
-      "reg_alpha": 0.7451595247161915,
-      "reg_lambda": 0.3267517129511446
+      "n_estimators": 301,
+      "max_depth": 10,
+      "learning_rate": 0.08799097641316703,
+      "subsample": 0.760042946099168,
+      "colsample_bytree": 0.6214468268531653,
+      "reg_alpha": 0.14213099129510676,
+      "reg_lambda": 0.6486950589510185
     }
   },
-  "performance": 0.21581957653583403,
-  "samples": 625,
+  "performance": 0.08934707903780069,
+  "samples": 388,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

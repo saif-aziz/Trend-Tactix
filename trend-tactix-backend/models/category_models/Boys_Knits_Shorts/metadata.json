@@ -2,33 +2,33 @@
   "category": "Boys Knits Shorts",
   "params": {
     "rf": {
-      "n_estimators": 323,
-      "max_depth": 17,
-      "min_samples_split": 5,
-      "min_samples_leaf": 9,
-      "max_features": "log2"
+      "n_estimators": 424,
+      "max_depth": 11,
+      "min_samples_split": 6,
+      "min_samples_leaf": 8,
+      "max_features": null
     },
     "xgb": {
-      "n_estimators": 439,
-      "max_depth": 4,
-      "learning_rate": 0.2600367538694133,
-      "subsample": 0.7571599257145869,
-      "colsample_bytree": 0.7547504114349556,
-      "reg_alpha": 0.9951953512320945,
-      "reg_lambda": 0.015971760621886016
+      "n_estimators": 227,
+      "max_depth": 9,
+      "learning_rate": 0.1488213854555191,
+      "subsample": 0.6363004534267612,
+      "colsample_bytree": 0.7177180699511995,
+      "reg_alpha": 0.31364868474151264,
+      "reg_lambda": 0.9649394168214616
     },
     "lgb": {
-      "n_estimators": 346,
-      "max_depth": 8,
-      "learning_rate": 0.09404214953980439,
-      "subsample": 0.7546599543964261,
-      "colsample_bytree": 0.8809311218374872,
-      "reg_alpha": 0.4816052705936765,
-      "reg_lambda": 0.5356893373575412
+      "n_estimators": 310,
+      "max_depth": 4,
+      "learning_rate": 0.2231805525645118,
+      "subsample": 0.6160969202751376,
+      "colsample_bytree": 0.6647893389412841,
+      "reg_alpha": 0.6275747583818979,
+      "reg_lambda": 0.2908866855438279
     }
   },
-  "performance": 0.0883488168064069,
-  "samples": 177,
+  "performance": 0.0,
+  "samples": 104,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

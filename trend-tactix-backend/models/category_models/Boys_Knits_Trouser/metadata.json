@@ -2,33 +2,33 @@
   "category": "Boys Knits Trouser",
   "params": {
     "rf": {
-      "n_estimators": 373,
-      "max_depth": 18,
-      "min_samples_split": 17,
-      "min_samples_leaf": 8,
-      "max_features": "log2"
+      "n_estimators": 101,
+      "max_depth": 16,
+      "min_samples_split": 14,
+      "min_samples_leaf": 10,
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 347,
-      "max_depth": 5,
-      "learning_rate": 0.25502067602218237,
-      "subsample": 0.7766920069651657,
-      "colsample_bytree": 0.8504245431476185,
-      "reg_alpha": 0.6421729427522997,
-      "reg_lambda": 0.8037820815352918
+      "n_estimators": 259,
+      "max_depth": 10,
+      "learning_rate": 0.09256253447331458,
+      "subsample": 0.6222649288426072,
+      "colsample_bytree": 0.6093634874906857,
+      "reg_alpha": 0.003797025883918826,
+      "reg_lambda": 0.6442072087131265
     },
     "lgb": {
-      "n_estimators": 102,
-      "max_depth": 5,
-      "learning_rate": 0.01734268401720309,
-      "subsample": 0.6097779879950682,
-      "colsample_bytree": 0.7651960216114851,
-      "reg_alpha": 0.3756527580913524,
-      "reg_lambda": 0.6562996729112027
+      "n_estimators": 114,
+      "max_depth": 4,
+      "learning_rate": 0.01187671021481416,
+      "subsample": 0.9991109155626343,
+      "colsample_bytree": 0.6246639793194683,
+      "reg_alpha": 0.48527290018770963,
+      "reg_lambda": 0.9966167575793039
     }
   },
-  "performance": 0.5316571591073572,
-  "samples": 309,
+  "performance": 0.8768626171135784,
+  "samples": 144,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

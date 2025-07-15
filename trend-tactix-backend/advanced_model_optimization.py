@@ -45,7 +45,7 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
     Advanced forecasting system with dynamic weight updates and parameter optimization
     """
     
-    def __init__(self, model_type='ensemble', prediction_horizon_days=90):
+    def __init__(self, model_type='ensemble', prediction_horizon_days=365):
         super().__init__(model_type, prediction_horizon_days)
         
         # Advanced optimization attributes
@@ -1348,9 +1348,17 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
     
     def _apply_business_rules_advanced(self, predictions, prediction_features_df):
         """
-        Apply enhanced business constraints and domain knowledge
+        Apply enhanced business constraints and domain knowledge WITH SEASONAL LOGIC
         """
         adjusted_predictions = predictions.copy()
+        
+        # Get current prediction period info
+        prediction_type = getattr(self, 'prediction_type', 'custom')
+        prediction_start = getattr(self, 'prediction_start_date', datetime.now())
+        prediction_end = getattr(self, 'prediction_end_date', datetime.now() + timedelta(days=365))
+        prediction_days = getattr(self, 'prediction_horizon', 365)
+        
+        print(f"🎯 Applying business rules for {prediction_type} period ({prediction_days} days)")
         
         for i, (_, row) in enumerate(prediction_features_df.iterrows()):
             pred = predictions[i]
@@ -1360,6 +1368,17 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             season = str(row.get('Season_first', row.get('Season', 'Unknown')))
             gender = str(row.get('Gender_first', row.get('Gender', 'Unknown')))
             size = str(row.get('Size Name_first', row.get('Size Name', 'Unknown')))
+            
+            # ===== SEASONAL ADJUSTMENTS - THIS IS THE KEY CHANGE =====
+            seasonal_multiplier = self._calculate_seasonal_multiplier(
+                category, season, prediction_type, prediction_start, prediction_end
+            )
+            
+            print(f"   Product: {row.get('Product Code', 'Unknown')} - Category: {category}, Season: {season}")
+            print(f"   Seasonal multiplier: {seasonal_multiplier} for {prediction_type} period")
+            
+            # Apply seasonal multiplier FIRST
+            pred = pred * seasonal_multiplier
             
             # Enhanced category-based adjustments
             if any(keyword in category.lower() for keyword in ['under garments', 'basic']):
@@ -1373,17 +1392,22 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             else:
                 adjusted_predictions[i] = max(pred, 3)
             
-            # Enhanced seasonal adjustments
-            current_month = datetime.now().month
-            
-            if 'winter' in season.lower() and current_month in [10, 11, 12, 1, 2]:
-                adjusted_predictions[i] *= 1.5
-            elif 'summer' in season.lower() and current_month in [4, 5, 6, 7, 8]:
-                adjusted_predictions[i] *= 1.4
-            elif 'open season' in season.lower():
+            # Period-specific adjustments (different from seasonal)
+            if prediction_type == 'winter':
+                # Winter period gets extra boost for warm items
+                if any(keyword in category.lower() for keyword in ['winter', 'jacket', 'coat']):
+                    adjusted_predictions[i] *= 1.8
+                elif any(keyword in category.lower() for keyword in ['summer', 'shorts']):
+                    adjusted_predictions[i] *= 0.4  # Heavy penalty for summer items
+            elif prediction_type == 'summer':
+                # Summer period gets extra boost for cool items
+                if any(keyword in category.lower() for keyword in ['summer', 'shorts', 'tank']):
+                    adjusted_predictions[i] *= 1.8
+                elif any(keyword in category.lower() for keyword in ['winter', 'jacket']):
+                    adjusted_predictions[i] *= 0.4  # Heavy penalty for winter items
+            elif prediction_type == 'full_year':
+                # Full year gets balanced approach
                 adjusted_predictions[i] *= 1.2
-            elif season.lower() not in ['unknown', 'open season']:
-                adjusted_predictions[i] *= 0.8
             
             # Enhanced size popularity adjustments
             popular_kids_sizes = ['5-6y', '7-8y', '9-10y', '11-12y', '13-14y']
@@ -1403,17 +1427,101 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             elif 'male' in gender.lower():
                 adjusted_predictions[i] *= 1.1
             
-            # Add controlled randomness
+            # Add controlled randomness to avoid identical predictions
             random_factor = np.random.uniform(0.9, 1.15)
             adjusted_predictions[i] *= random_factor
             
             # Final constraints
             adjusted_predictions[i] = max(int(adjusted_predictions[i]), 1)
             adjusted_predictions[i] = min(adjusted_predictions[i], 50)
+            
+            print(f"   Final prediction: {adjusted_predictions[i]} (original: {predictions[i]:.1f})")
         
         return adjusted_predictions
+    def _calculate_seasonal_multiplier(self, category, season, prediction_type, prediction_start, prediction_end):
+        """Calculate seasonal multiplier based on period and product attributes"""
+        
+        base_multiplier = 1.0
+        
+        print(f"   Calculating seasonal multiplier: {prediction_type} for {category}/{season}")
+        
+        # STRONG seasonal adjustments based on prediction period
+        if prediction_type == 'winter':
+            if 'winter' in season.lower():
+                base_multiplier = 2.5  # Very strong boost for winter items in winter
+            elif 'summer' in season.lower():
+                base_multiplier = 0.3  # Strong penalty for summer items in winter
+            elif 'open season' in season.lower():
+                base_multiplier = 1.4  # Moderate boost for open season
+            else:
+                base_multiplier = 0.7  # General off-season penalty
+                
+        elif prediction_type == 'summer':
+            if 'summer' in season.lower():
+                base_multiplier = 2.5  # Very strong boost for summer items in summer
+            elif 'winter' in season.lower():
+                base_multiplier = 0.3  # Strong penalty for winter items in summer
+            elif 'open season' in season.lower():
+                base_multiplier = 1.4  # Moderate boost for open season
+            else:
+                base_multiplier = 0.8  # General off-season penalty
+                
+        elif prediction_type == 'spring':
+            if 'spring' in season.lower():
+                base_multiplier = 2.0
+            elif 'open season' in season.lower():
+                base_multiplier = 1.3
+            else:
+                base_multiplier = 0.9
+                
+        elif prediction_type == 'autumn':
+            if 'autumn' in season.lower() or 'fall' in season.lower():
+                base_multiplier = 2.0
+            elif 'open season' in season.lower():
+                base_multiplier = 1.3
+            else:
+                base_multiplier = 0.9
+                
+        elif prediction_type == 'full_year':
+            base_multiplier = 1.6  # Higher overall for full year
+            
+        else:
+            # Custom periods - calculate based on months included
+            prediction_months = pd.date_range(prediction_start, prediction_end, freq='M').month.tolist()
+            
+            winter_months = [12, 1, 2]
+            summer_months = [6, 7, 8]
+            
+            winter_overlap = len(set(prediction_months) & set(winter_months))
+            summer_overlap = len(set(prediction_months) & set(summer_months))
+            
+            if 'winter' in season.lower() and winter_overlap > 0:
+                base_multiplier = 1.5 + (winter_overlap * 0.3)
+            elif 'summer' in season.lower() and summer_overlap > 0:
+                base_multiplier = 1.5 + (summer_overlap * 0.3)
+            elif 'open season' in season.lower():
+                base_multiplier = 1.2
+        
+        # Category seasonal behavior
+        category_str = category.lower()
+        if 'under garment' in category_str or 'basic' in category_str:
+            base_multiplier *= 1.1  # Consistent demand regardless of season
+        elif 'jacket' in category_str or 'coat' in category_str:
+            if prediction_type == 'winter':
+                base_multiplier *= 1.8  # Extra boost for jackets in winter
+            elif prediction_type == 'summer':
+                base_multiplier *= 0.2  # Heavy penalty for jackets in summer
+        elif 'shorts' in category_str or 'tank' in category_str:
+            if prediction_type == 'summer':
+                base_multiplier *= 1.8  # Extra boost for shorts in summer
+            elif prediction_type == 'winter':
+                base_multiplier *= 0.2  # Heavy penalty for shorts in winter
+        
+        print(f"   Final seasonal multiplier: {base_multiplier}")
+        return base_multiplier
     
     def _calculate_advanced_confidence_v2(self, prediction_features_df, predictions, model_predictions):
+        
         """
         Enhanced confidence calculation with more factors
         """
@@ -1485,3 +1593,267 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             confidence_scores.append(final_score)
         
         return confidence_scores
+    
+
+   # Add these methods to the AdvancedOptimizedForecaster class in advanced_model_optimization.py
+# (around line 1000, after the existing methods)
+
+    def create_seasonal_prediction_features(self, products_df, prediction_start, prediction_end, prediction_type):
+        """
+        ADVANCED: Create prediction features with seasonal intelligence and optimization
+        Overrides base class method with advanced features
+        """
+        
+        print(f"🔮 Creating ADVANCED seasonal features for {prediction_type} period: {prediction_start.date()} to {prediction_end.date()}")
+        
+        # Store training data reference for seasonal insights
+        if hasattr(self, 'training_sales_data') and self.training_sales_data is not None:
+            # Use existing training data
+            pass
+        else:
+            # Try to get from global training data
+            try:
+                import api_routes
+                self.training_sales_data = api_routes.training_sales_data
+            except:
+                print("⚠️ Warning: No training data available for seasonal insights")
+        
+        # Call parent class method for base functionality
+        pred_features = super().create_seasonal_prediction_features(
+            products_df, prediction_start, prediction_end, prediction_type
+        )
+       
+        
+        
+        # ADVANCED: Add optimization-specific enhancements
+        pred_features = self._add_advanced_seasonal_features(
+            pred_features, prediction_start, prediction_end, prediction_type
+        )
+        
+        
+        # ADVANCED: Apply dynamic weights if available
+        if hasattr(self, 'dynamic_weights') and self.dynamic_weights:
+            pred_features = self._apply_dynamic_seasonal_weights(pred_features)
+        
+        # ADVANCED: Use category-specific models for seasonal prediction if available
+        if hasattr(self, 'category_models') and self.category_models:
+            pred_features = self._enhance_with_category_models(pred_features, prediction_type)
+        
+        print(f"✅ ADVANCED seasonal prediction features created with optimization")
+        
+        return pred_features
+
+    def _add_advanced_seasonal_features(self, pred_features, prediction_start, prediction_end, prediction_type):
+        """Add advanced seasonal features with optimization insights"""
+        
+        # Advanced seasonal intelligence
+        prediction_days = (prediction_end - prediction_start).days + 1
+        
+        # Advanced seasonal scoring
+        for i, row in pred_features.iterrows():
+            category = str(row.get('Category', 'Unknown'))
+            
+            # Historical category performance during this period
+            if hasattr(self, 'category_stats') and category in self.category_stats:
+                category_info = self.category_stats[category]
+                seasonal_boost = category_info.get('category_market_share', 1.0)
+                pred_features.loc[i, 'category_seasonal_boost'] = seasonal_boost
+            else:
+                pred_features.loc[i, 'category_seasonal_boost'] = 1.0
+            
+            # Advanced seasonal velocity calculation
+            base_velocity = pred_features.loc[i, 'sales_velocity']
+            
+            # Seasonal velocity adjustments
+            if prediction_type == 'winter':
+                seasonal_velocity_multiplier = 1.4
+            elif prediction_type == 'summer':
+                seasonal_velocity_multiplier = 1.3
+            elif prediction_type == 'full_year':
+                seasonal_velocity_multiplier = 1.0
+            else:
+                # Custom period - calculate based on days
+                seasonal_velocity_multiplier = min(2.0, max(0.5, prediction_days / 90))
+            
+            pred_features.loc[i, 'seasonal_velocity'] = base_velocity * seasonal_velocity_multiplier
+            
+            # Advanced trend analysis
+            pred_features.loc[i, 'seasonal_trend_score'] = self._calculate_seasonal_trend_score(
+                category, prediction_type, prediction_start, prediction_end
+            )
+        
+        return pred_features
+
+    def _apply_dynamic_seasonal_weights(self, pred_features):
+        """Apply dynamic weights for seasonal predictions"""
+        
+        # Apply ensemble weights to seasonal features
+        if hasattr(self, 'dynamic_weights'):
+            weight_adjustment = np.mean(list(self.dynamic_weights.values()))
+            pred_features['ensemble_weight_adjustment'] = weight_adjustment
+            
+            # Adjust estimates based on dynamic weights
+            pred_features['total_sales'] = pred_features['total_sales'] * weight_adjustment
+        
+        return pred_features
+
+    def _enhance_with_category_models(self, pred_features, prediction_type):
+        """Enhance predictions using category-specific models"""
+        
+        if not hasattr(self, 'category_models'):
+            return pred_features
+        
+        for i, row in pred_features.iterrows():
+            category = str(row.get('Category', 'Unknown'))
+            
+            if category in self.category_models:
+                category_model_info = self.category_models[category]
+                
+                # Use category-specific performance metrics
+                category_performance = category_model_info.get('performance', 1.0)
+                
+                # Adjust based on category model performance
+                performance_multiplier = max(0.5, min(2.0, 1.0 / (category_performance + 0.01)))
+                pred_features.loc[i, 'category_model_adjustment'] = performance_multiplier
+                pred_features.loc[i, 'total_sales'] *= performance_multiplier
+            else:
+                pred_features.loc[i, 'category_model_adjustment'] = 1.0
+        
+        return pred_features
+
+    def _calculate_seasonal_trend_score(self, category, prediction_type, prediction_start, prediction_end):
+        """Calculate advanced seasonal trend score"""
+        
+        base_score = 1.0
+        
+        # Historical trend analysis
+        if hasattr(self, 'training_sales_data') and self.training_sales_data is not None:
+            try:
+                # Analyze trends for this category in similar periods
+                sales_df = self.training_sales_data
+                
+                # Get historical performance for this category
+                category_sales = sales_df[sales_df['Category'] == category]
+                
+                if len(category_sales) > 0:
+                    # Calculate monthly trend
+                    monthly_sales = category_sales.groupby(category_sales['Sale Date'].dt.month).size()
+                    
+                    # Seasonal trend calculation
+                    prediction_months = pd.date_range(prediction_start, prediction_end, freq='M').month
+                    
+                    if len(prediction_months) > 0:
+                        period_performance = monthly_sales.reindex(prediction_months, fill_value=0).mean()
+                        overall_performance = monthly_sales.mean()
+                        
+                        if overall_performance > 0:
+                            base_score = period_performance / overall_performance
+                        
+            except Exception as e:
+                print(f"   ⚠️ Warning: Could not calculate trend score for {category}: {e}")
+        
+        return min(3.0, max(0.3, base_score))
+
+    def predict_seasonal_demand(self, prediction_features_df):
+        """
+        ADVANCED: Generate predictions with seasonal intelligence and optimization
+        Overrides base class method with advanced features
+        """
+        
+        if not self.models:
+            raise ValueError("No models trained. Call train_ensemble_model_advanced() first.")
+        
+        print(f"🔮 Generating ADVANCED seasonal predictions with optimization")
+        
+        # Use advanced ensemble prediction logic
+        predictions = self.predict_demand_ensemble_advanced(prediction_features_df)
+        
+        # ADVANCED: Add seasonal context and optimization info
+        predictions['seasonal_period'] = getattr(self, 'prediction_type', 'custom')
+        predictions['prediction_days'] = getattr(self, 'prediction_horizon', 365)
+        predictions['optimization_applied'] = True
+        
+        # ADVANCED: Apply final seasonal adjustments
+        predictions = self._apply_final_seasonal_adjustments(predictions)
+        
+        return predictions
+
+    def _apply_final_seasonal_adjustments(self, predictions):
+        """Apply final seasonal adjustments with optimization insights"""
+        
+        # Performance-based adjustments
+        if hasattr(self, 'baseline_performance') and self.baseline_performance:
+            baseline_mae = self.baseline_performance.get('mae', 5.0)
+            
+            # Adjust confidence based on historical performance
+            confidence_adjustment = max(0.8, min(1.2, 5.0 / (baseline_mae + 0.1)))
+            predictions['confidence_score'] = predictions['confidence_score'] * confidence_adjustment
+        
+        # Ensemble weight adjustments
+        if hasattr(self, 'dynamic_weights') and self.dynamic_weights:
+            # Apply ensemble confidence
+            ensemble_confidence = np.mean(list(self.dynamic_weights.values()))
+            predictions['ensemble_confidence'] = ensemble_confidence
+        
+        # Seasonal risk assessment
+        prediction_type = getattr(self, 'prediction_type', 'custom')
+        
+        if prediction_type in ['winter', 'summer']:
+            # In-season predictions are more confident
+            predictions['confidence_score'] = np.minimum(95, predictions['confidence_score'] * 1.1)
+        elif prediction_type == 'full_year':
+            # Full year predictions are more stable
+            predictions['confidence_score'] = np.minimum(90, predictions['confidence_score'] * 1.05)
+        
+        return predictions
+
+    # ADVANCED: Additional helper methods for better seasonal intelligence
+
+    def set_seasonal_context(self, prediction_start, prediction_end, prediction_type):
+        """Set seasonal context for advanced predictions"""
+        
+        self.prediction_start_date = prediction_start
+        self.prediction_end_date = prediction_end
+        self.prediction_type = prediction_type
+        self.prediction_horizon = (prediction_end - prediction_start).days + 1
+        
+        # Store training data reference for seasonal insights
+        if hasattr(self, 'training_sales_data') and self.training_sales_data is not None:
+            # Use existing training data
+            pass
+        else:
+            # Try to get from global training data
+            try:
+                import api_routes
+                self.training_sales_data = api_routes.training_sales_data
+            except:
+                print("⚠️ Warning: No training data available for seasonal insights")
+        
+        print(f"🎯 Seasonal context set: {prediction_type} period ({self.prediction_horizon} days)")
+
+    def get_seasonal_insights_report(self):
+        """Generate seasonal insights report"""
+        
+        if not hasattr(self, 'prediction_type'):
+            return {'error': 'No seasonal context set'}
+        
+        report = {
+            'prediction_period': {
+                'type': self.prediction_type,
+                'start': self.prediction_start_date.isoformat() if hasattr(self, 'prediction_start_date') else None,
+                'end': self.prediction_end_date.isoformat() if hasattr(self, 'prediction_end_date') else None,
+                'days': self.prediction_horizon
+            },
+            'historical_context': {
+                'periods_analyzed': self.historical_periods_count,
+                'optimization_applied': True,
+                'advanced_features': True
+            },
+            'model_enhancements': {
+                'dynamic_weights': hasattr(self, 'dynamic_weights') and bool(self.dynamic_weights),
+                'category_models': hasattr(self, 'category_models') and bool(self.category_models),
+                'baseline_performance': hasattr(self, 'baseline_performance') and bool(self.baseline_performance)
+            }
+        }
+        
+        return report 

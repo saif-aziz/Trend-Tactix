@@ -2,33 +2,33 @@
   "category": "Girls Legging",
   "params": {
     "rf": {
-      "n_estimators": 319,
-      "max_depth": 8,
+      "n_estimators": 103,
+      "max_depth": 12,
       "min_samples_split": 2,
-      "min_samples_leaf": 10,
-      "max_features": "log2"
+      "min_samples_leaf": 5,
+      "max_features": "sqrt"
     },
     "xgb": {
-      "n_estimators": 197,
-      "max_depth": 10,
-      "learning_rate": 0.01190333743947904,
-      "subsample": 0.9911013994577689,
-      "colsample_bytree": 0.8990326211175398,
-      "reg_alpha": 0.7273821855586975,
-      "reg_lambda": 0.9418807411185859
+      "n_estimators": 401,
+      "max_depth": 9,
+      "learning_rate": 0.2990095224984693,
+      "subsample": 0.6713830549178074,
+      "colsample_bytree": 0.735921799625884,
+      "reg_alpha": 0.4959485673349507,
+      "reg_lambda": 0.117961395437362
     },
     "lgb": {
-      "n_estimators": 275,
-      "max_depth": 9,
-      "learning_rate": 0.19776386035974924,
-      "subsample": 0.8636698985171469,
-      "colsample_bytree": 0.9744114658065478,
-      "reg_alpha": 0.6901761457055443,
-      "reg_lambda": 0.9891051472798331
+      "n_estimators": 307,
+      "max_depth": 6,
+      "learning_rate": 0.06144421588200978,
+      "subsample": 0.6826984534801371,
+      "colsample_bytree": 0.7543405285155266,
+      "reg_alpha": 0.3290704756840533,
+      "reg_lambda": 0.7457651349541191
     }
   },
-  "performance": 0.3911212303568757,
-  "samples": 620,
+  "performance": 0.32615275317691417,
+  "samples": 364,
   "feature_columns": [
     "total_sales",
     "days_since_first_sale",

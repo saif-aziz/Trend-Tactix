@@ -32,7 +32,7 @@ class OptimizedInventoryForecaster:
     4. Business rules integration
     """
     
-    def __init__(self, model_type='ensemble', prediction_horizon_days=90):
+    def __init__(self, model_type='ensemble', prediction_horizon_days=365):
         self.model_type = model_type
         self.prediction_horizon = prediction_horizon_days
         self.models = {}
@@ -128,7 +128,7 @@ class OptimizedInventoryForecaster:
     # PHASE 1: REAL TARGETS
     # ========================
     
-    def create_real_targets_from_future_sales(self, sales_df, features_df, reference_date, horizon_days=90):
+    def create_real_targets_from_future_sales(self, sales_df, features_df, reference_date, horizon_days=365):
         """
         CRITICAL CHANGE: Create real targets using actual future sales
         This replaces the synthetic target generation
@@ -160,51 +160,196 @@ class OptimizedInventoryForecaster:
         
         print(f"   Real targets - Min: {min(targets)}, Max: {max(targets)}, Mean: {np.mean(targets):.1f}")
         return targets
-    
+   
+    # this function creates features for tarin model
     def create_training_features_with_temporal_split(self, sales_df, inventory_df=None, 
-                                                   train_end_date=None, validation_split=0.2):
+                                               train_end_date=None, validation_split=0.2,
+                                               prediction_period=None):
+            """
+            ENHANCED: Training with period-aware temporal splitting
+            Now supports dynamic prediction periods
+            """
+            if train_end_date is None:
+                # Use 80% of data for training, 20% for validation
+                max_date = sales_df['Sale Date'].max()
+                min_date = sales_df['Sale Date'].min()
+                total_days = (max_date - min_date).days
+                train_end_date = min_date + timedelta(days=int(total_days * (1 - validation_split)))
+            
+            # NEW: Store prediction period info
+            if prediction_period:
+                self.prediction_start_date = pd.to_datetime(prediction_period.get('start_date'))
+                self.prediction_end_date = pd.to_datetime(prediction_period.get('end_date'))
+                self.prediction_type = prediction_period.get('type', 'custom')
+                self.prediction_horizon = prediction_period.get('total_days', 365)
+                
+                print(f"🎯 PERIOD-AWARE Training for {self.prediction_type} period:")
+                print(f"   Target Period: {self.prediction_start_date.date()} to {self.prediction_end_date.date()}")
+                print(f"   Duration: {self.prediction_horizon} days")
+            else:
+                # Default behavior
+                self.prediction_horizon = getattr(self, 'prediction_horizon', 365)
+                print(f"📅 Standard Training (no specific period set)")
+            
+            print(f"Training period: {sales_df['Sale Date'].min()} to {train_end_date}")
+            print(f"Validation period: {train_end_date + timedelta(days=1)} to {sales_df['Sale Date'].max()}")
+            
+            # Create features up to training end date
+            train_mask = sales_df['Sale Date'] <= train_end_date
+            train_sales = sales_df[train_mask].copy()
+            
+            # Add time-based features
+            train_sales['Year'] = train_sales['Sale Date'].dt.year
+            train_sales['Month'] = train_sales['Sale Date'].dt.month
+            train_sales['Quarter'] = train_sales['Sale Date'].dt.quarter
+            train_sales['DayOfWeek'] = train_sales['Sale Date'].dt.dayofweek
+            
+            # Create enhanced features
+            features_df = self._create_enhanced_sku_features(train_sales, train_end_date)
+            features_df = self._add_enhanced_category_features(features_df, train_sales)
+            features_df = self._add_similarity_features(features_df, train_sales)
+            
+            if inventory_df is not None:
+                features_df = self._add_inventory_features(features_df, inventory_df, train_end_date)
+            
+            features_df = self._add_temporal_features(features_df, train_sales)
+            features_df = self._encode_categorical_features(features_df)
+            
+            # CRITICAL: Create period-aware targets
+            if prediction_period:
+                features_df['target_demand'] = self.create_period_aware_targets(
+                    sales_df, features_df, train_end_date, prediction_period
+                )
+            else:
+                features_df['target_demand'] = self.create_real_targets_from_future_sales(
+                    sales_df, features_df, train_end_date, self.prediction_horizon
+                )
+            
+            print(f"✅ Training features with REAL targets: {len(features_df)} SKUs, {len(features_df.columns)} features")
+            
+            return features_df
+    
+    def create_period_aware_targets(self, sales_df, features_df, reference_date, prediction_period):
         """
-        Enhanced training with proper temporal splitting
+        NEW: Create targets based on same periods in historical years
+        This is the key to seasonal intelligence!
         """
-        if train_end_date is None:
-            # Use 80% of data for training, 20% for validation
-            max_date = sales_df['Sale Date'].max()
-            min_date = sales_df['Sale Date'].min()
-            total_days = (max_date - min_date).days
-            train_end_date = min_date + timedelta(days=int(total_days * (1 - validation_split)))
+        targets = []
+        reference_date = pd.to_datetime(reference_date)
         
-        print(f"Training period: {sales_df['Sale Date'].min()} to {train_end_date}")
-        print(f"Validation period: {train_end_date + timedelta(days=1)} to {sales_df['Sale Date'].max()}")
+        # Extract period info
+        target_start = pd.to_datetime(prediction_period['start_date'])
+        target_end = pd.to_datetime(prediction_period['end_date'])
+        prediction_type = prediction_period.get('type', 'custom')
         
-        # Create features up to training end date
-        train_mask = sales_df['Sale Date'] <= train_end_date
-        train_sales = sales_df[train_mask].copy()
+        print(f"🎯 Creating PERIOD-AWARE targets for {prediction_type}")
+        print(f"   Learning from similar periods in historical data")
+        print(f"   Target period pattern: {target_start.month}/{target_start.day} to {target_end.month}/{target_end.day}")
         
-        # Add time-based features
-        train_sales['Year'] = train_sales['Sale Date'].dt.year
-        train_sales['Month'] = train_sales['Sale Date'].dt.month
-        train_sales['Quarter'] = train_sales['Sale Date'].dt.quarter
-        train_sales['DayOfWeek'] = train_sales['Sale Date'].dt.dayofweek
+        # Get available historical years
+        available_years = sorted(sales_df['Sale Date'].dt.year.unique())
+        target_year = target_start.year
+        historical_years = [y for y in available_years if y < target_year]
         
-        # Create enhanced features
-        features_df = self._create_enhanced_sku_features(train_sales, train_end_date)
-        features_df = self._add_enhanced_category_features(features_df, train_sales)
-        features_df = self._add_similarity_features(features_df, train_sales)
+        print(f"   Available historical years: {historical_years}")
         
-        if inventory_df is not None:
-            features_df = self._add_inventory_features(features_df, inventory_df, train_end_date)
+        for _, row in features_df.iterrows():
+            product_code = row['Product Code']
+            category = row.get('Category_first', 'Unknown')
+            
+            # Collect demands from same periods in historical years
+            historical_demands = []
+            
+            for year in historical_years:
+                try:
+                    # Create same period in historical year
+                    hist_start = target_start.replace(year=year)
+                    hist_end = target_end.replace(year=year)
+                    
+                    # Handle year boundary crossing (e.g., Dec-Jan)
+                    if target_end.month < target_start.month:
+                        hist_end = hist_end.replace(year=year+1)
+                    
+                    # Get sales in this historical period
+                    period_sales = sales_df[
+                        (sales_df['Product Code'] == product_code) & 
+                        (sales_df['Sale Date'] >= hist_start) & 
+                        (sales_df['Sale Date'] <= hist_end)
+                    ]
+                    
+                    if len(period_sales) > 0:
+                        historical_demands.append(len(period_sales))
+                        
+                except Exception as e:
+                    continue
+            
+            # Calculate target based on historical patterns
+            if historical_demands:
+                # Use average of historical demands for this period
+                avg_historical_demand = np.mean(historical_demands)
+                
+                # Apply category-based adjustments
+                category_multiplier = self._get_category_seasonal_multiplier(category, prediction_type)
+                
+                final_target = max(1, int(avg_historical_demand * category_multiplier))
+            else:
+                # Fallback: use category-based estimates
+                final_target = self._get_fallback_seasonal_target(category, prediction_type)
+            
+            targets.append(final_target)
         
-        features_df = self._add_temporal_features(features_df, train_sales)
-        features_df = self._encode_categorical_features(features_df)
+        print(f"   Period-aware targets - Min: {min(targets)}, Max: {max(targets)}, Mean: {np.mean(targets):.1f}")
+        print(f"   Based on {len(historical_years)} historical years")
         
-        # CRITICAL: Create REAL targets using future sales
-        features_df['target_demand'] = self.create_real_targets_from_future_sales(
-            sales_df, features_df, train_end_date, self.prediction_horizon
-        )
+        return targets
+    
+    def _get_category_seasonal_multiplier(self, category, prediction_type):
+        """Get category-specific seasonal multipliers"""
+        category_str = str(category).lower()
         
-        print(f"✅ Training features with REAL targets: {len(features_df)} SKUs, {len(features_df.columns)} features")
+        if prediction_type == 'winter':
+            if 'winter' in category_str or 'jacket' in category_str:
+                return 1.8
+            elif 'under garment' in category_str:
+                return 1.3
+            elif 'summer' in category_str:
+                return 0.6
+            else:
+                return 1.0
+                
+        elif prediction_type == 'summer':
+            if 'summer' in category_str or 'shorts' in category_str:
+                return 1.7
+            elif 'winter' in category_str:
+                return 0.5
+            elif 'under garment' in category_str:
+                return 1.2
+            else:
+                return 1.0
+                
+        elif prediction_type == 'full_year':
+            return 1.4  # Yearly multiplier
+            
+        else:  # quarter, spring, autumn, custom
+            return 1.1
+
+    # ADD this helper function:
+
+    def _get_fallback_seasonal_target(self, category, prediction_type):
+        """Fallback targets when no historical data available"""
+        category_str = str(category).lower()
         
-        return features_df
+        base_targets = {
+            'winter': 6 if 'winter' in category_str else 4,
+            'summer': 7 if 'summer' in category_str else 4,
+            'spring': 5,
+            'autumn': 5,
+            'quarter': 8,
+            'full_year': 25,
+            'custom': 5
+        }
+        
+        return base_targets.get(prediction_type, 5)
     
     def _add_inventory_features(self, features_df, inventory_df, reference_date):
         """Add inventory-based features if available"""
@@ -1094,19 +1239,29 @@ class OptimizedInventoryForecaster:
     # ========================
     # IMPROVED PREDICTION FEATURES
     # ========================
-    
+    # 4th call route on click of Generate Category Forecast
+    # this func is called with 'category_products' (basically products of selected category)
     def create_enhanced_prediction_features(self, products_df):
         """Create enhanced prediction features using training insights - FIXED VERSION"""
+        print(f"printing category products")
+        print(products_df)
+        # breakpoint()
         
         print(f"Creating enhanced prediction features for {len(products_df)} new products")
         
         pred_features = products_df.copy()
         
+        
         # Ensure all required columns exist
         for feature in self.brand_features:
             if feature not in pred_features.columns:
                 pred_features[feature] = 'Unknown'
-        
+
+        # //Added debugging
+        print(f"printing Brand Features : ")
+        print(pred_features)
+        # breakpoint()
+
         # Add category-based intelligent estimates
         if hasattr(self, 'category_stats') and 'Category' in pred_features.columns:
             pred_features = pred_features.merge(
@@ -1115,7 +1270,9 @@ class OptimizedInventoryForecaster:
                 right_on='Category_first', 
                 how='left'
             )
-            
+            # added debugging
+            print(pred_features)
+            # breakpoint()
             # Fill missing with global averages
             global_avg = self.category_stats['category_avg_sales_per_sku'].mean()
             pred_features['category_avg_sales_per_sku'] = pred_features['category_avg_sales_per_sku'].fillna(global_avg)
@@ -1243,15 +1400,342 @@ class OptimizedInventoryForecaster:
         
         return final_features
     
-    # Wrapper methods to maintain compatibility
+
+    # Add these methods to the OptimizedInventoryForecaster class in optimized_forecaster.py
+# (around line 800, after the existing methods)
+
+    def create_seasonal_prediction_features(self, products_df, prediction_start, prediction_end, prediction_type="full_year"):
+        """Create prediction features with seasonal intelligence"""
+        
+        print(f"Creating seasonal features for {prediction_type} period: {prediction_start.date()} to {prediction_end.date()}")
+        
+        pred_features = products_df.copy()
+        
+        # Ensure all required columns exist
+        for feature in self.brand_features:
+            if feature not in pred_features.columns:
+                pred_features[feature] = 'Unknown'
+        
+        # Calculate prediction period characteristics
+        prediction_days = (prediction_end - prediction_start).days + 1
+        prediction_months = list(pd.date_range(prediction_start, prediction_end, freq='M').month)
+       
+        # Add seasonal intelligence based on historical data
+        if hasattr(self, 'training_sales_data'):
+            seasonal_insights = self._extract_seasonal_insights(prediction_start, prediction_end, prediction_type)
+
+            print(f'Insights : ')
+            print(seasonal_insights)
+            breakpoint()
+        else:
+            print(f'No Insights, No output from extract_seasonal_insights')
+            breakpoint()
+            seasonal_insights = {}
+        
+        np.random.seed(42)  # For reproducible results
+        
+        for i, row in pred_features.iterrows():
+            category = str(row.get('Category', 'Unknown'))
+            season = str(row.get('Season', 'Unknown'))
+            gender = str(row.get('Gender', 'Unknown'))
+            size = str(row.get('Size Name', 'Unknown'))
+            
+            # Base seasonal multiplier
+            seasonal_multiplier = self._calculate_seasonal_multiplier(
+                category, season, prediction_type, prediction_months, seasonal_insights
+            )
+            
+            # Historical period performance (if available)
+            historical_performance = seasonal_insights.get('category_performance', {}).get(category, 1.0)
+            
+            # Category base estimate for the period
+            if prediction_type == 'winter':
+                category_base = self._get_winter_category_base(category)
+            elif prediction_type == 'summer':
+                category_base = self._get_summer_category_base(category)
+            elif prediction_type == 'full_year':
+                category_base = self._get_yearly_category_base(category)
+            else:
+                # Custom period - scale based on days
+                category_base = self._get_daily_category_base(category) * prediction_days
+            
+            # Apply multipliers
+            base_estimate = category_base * seasonal_multiplier * historical_performance
+            
+            # Gender adjustment
+            if gender == 'Female':
+                base_estimate *= 1.2
+            elif gender == 'Male':
+                base_estimate *= 1.0
+            
+            # Size popularity
+            popular_sizes = ['M', 'L', '8-9Y', '9-10Y', '10-11Y', '11-12Y']
+            if any(ps in size for ps in popular_sizes):
+                base_estimate *= 1.25
+            
+            # Add variation
+            variation = np.random.uniform(0.6, 1.8)
+            final_estimate = max(1, int(base_estimate * variation))
+            
+            # Store estimates
+            pred_features.loc[i, 'total_sales'] = final_estimate
+            pred_features.loc[i, 'seasonal_factor'] = seasonal_multiplier
+            pred_features.loc[i, 'historical_context'] = f"Based on {len(seasonal_insights.get('historical_years', []))} historical periods"
+            
+            # Time-based features
+            pred_features.loc[i, 'days_since_first_sale'] = np.random.randint(30, 200)
+            pred_features.loc[i, 'days_since_last_sale'] = np.random.randint(1, 15)
+            pred_features.loc[i, 'product_lifecycle_days'] = pred_features.loc[i, 'days_since_first_sale']
+            
+            # Calculate velocities
+            pred_features.loc[i, 'sales_velocity'] = final_estimate / prediction_days
+            pred_features.loc[i, 'recent_velocity'] = final_estimate / (pred_features.loc[i, 'days_since_last_sale'] + 1)
+            pred_features.loc[i, 'lifecycle_velocity'] = final_estimate / pred_features.loc[i, 'days_since_first_sale']
+            
+            # Flags
+            pred_features.loc[i, 'is_new_product'] = 1
+            pred_features.loc[i, 'is_mature_product'] = 0
+            pred_features.loc[i, 'is_declining'] = 0
+        
+        # Add seasonal features based on prediction period
+        pred_features = self._add_period_specific_features(pred_features, prediction_start, prediction_end)
+        
+        # Apply categorical encoding
+        for feature in self.brand_features:
+            feature_col = f"{feature}_first"
+            if feature in pred_features.columns:
+                pred_features[feature_col] = pred_features[feature]
+                
+                if feature_col in self.label_encoders:
+                    pred_features[f"{feature_col}_encoded"] = pred_features[feature_col].astype(str).map(
+                        lambda x: self.label_encoders[feature_col].transform([x])[0] 
+                        if x in self.label_encoders[feature_col].classes_ else -1
+                    )
+        
+        # Fill remaining features
+        for col in self.feature_columns:
+            if col not in pred_features.columns:
+                if col in self.feature_stats:
+                    base_value = self.feature_stats[col]['median']
+                    pred_features[col] = base_value * np.random.uniform(0.8, 1.5, len(pred_features))
+                else:
+                    pred_features[col] = np.random.uniform(1.0, 10.0, len(pred_features))
+        
+        final_features = pred_features[['Product Code'] + self.feature_columns]
+        
+        print(f"✅ Seasonal prediction features created")
+        print(f"   Period: {prediction_days} days ({prediction_type})")
+        print(f"   Sample estimates: {pred_features['total_sales'].head().tolist()}")
+        print(f"   Estimate range: {pred_features['total_sales'].min()}-{pred_features['total_sales'].max()}")
+        
+        return final_features
+
+    def _extract_seasonal_insights(self, prediction_start, prediction_end, prediction_type):
+        """Extract insights from historical data for the same period"""
+        
+   
+        print(f"DEBUG: Prediction period: {prediction_start} to {prediction_end}")
+        print(f"DEBUG: Target year: {prediction_start.year}")
+        
+        insights = {
+            'historical_years': [],
+            'category_performance': {},
+            'seasonal_trends': {},
+            'period_strength': 1.0
+        }
+        
+        if not hasattr(self, 'training_sales_data') or self.training_sales_data is None:
+            print(f'No sales training data')
+            breakpoint()
+            return insights
+        
+        sales_df = self.training_sales_data
+        print(f"DEBUG: Sales data shape: {sales_df.shape}")
+        print(f"DEBUG: Sales data date range: {sales_df['Sale Date'].min()} to {sales_df['Sale Date'].max()}")
+        
+        available_years = sorted(sales_df['Sale Date'].dt.year.unique())
+        print(f"DEBUG: Available years: {available_years}")
+        
+        target_year = prediction_start.year
+        print(f"DEBUG: Years before target ({target_year}): {[y for y in available_years if y < target_year]}")
+        
+        total_performance = []
+        category_performances = {}
+        
+        for year in available_years:
+            if year < target_year:
+                try:
+                    # Create same period in historical year
+                    hist_start = prediction_start.replace(year=year)
+                    hist_end = prediction_end.replace(year=year)
+                    
+                    # Handle year boundary crossing
+                    if hist_end.month < hist_start.month:
+                        hist_end = hist_end.replace(year=year+1)
+                    
+                    period_sales = sales_df[
+                        (sales_df['Sale Date'] >= hist_start) & 
+                        (sales_df['Sale Date'] <= hist_end)
+                    ]
+                    
+                    if len(period_sales) > 0:
+                        insights['historical_years'].append(year)
+                        total_performance.append(len(period_sales))
+                        
+                        # Category performance
+                        if 'Category' in period_sales.columns:
+                            cat_perf = period_sales.groupby('Category').size()
+                            for cat, count in cat_perf.items():
+                                if cat not in category_performances:
+                                    category_performances[cat] = []
+                                category_performances[cat].append(count)
+                               
+                except Exception as e:
+                    continue
+  
+        # Calculate average performance per category
+        for cat, performances in category_performances.items():
+            insights['category_performance'][cat] = np.mean(performances) / 10  # Normalize
+        
+        # Overall period strength
+        if total_performance:
+            insights['period_strength'] = np.mean(total_performance) / 100  # Normalize
+        
+
+
+        return insights
+
+    def _calculate_seasonal_multiplier(self, category, season, prediction_type, prediction_months, insights):
+        """Calculate seasonal multiplier based on period and product attributes"""
+        
+        base_multiplier = 1.0
+        
+        # Period-specific multipliers
+        if prediction_type == 'winter':
+            if 'Winter' in str(season):
+                base_multiplier = 1.8  # Perfect match
+            elif 'Open Season' in str(season):
+                base_multiplier = 1.3  # Still good
+            else:
+                base_multiplier = 0.8  # Off-season
+                
+        elif prediction_type == 'summer':
+            if 'Summer' in str(season):
+                base_multiplier = 1.7
+            elif 'Open Season' in str(season):
+                base_multiplier = 1.3
+            else:
+                base_multiplier = 0.9
+                
+        elif prediction_type == 'full_year':
+            base_multiplier = 1.4  # Year-round appeal
+            
+        # Category seasonal behavior
+        category_str = str(category).lower()
+        if 'under garment' in category_str or 'basic' in category_str:
+            base_multiplier *= 1.2  # Consistent demand
+        elif 'winter' in category_str and prediction_type == 'winter':
+            base_multiplier *= 1.5  # Perfect seasonal match
+        elif 'summer' in category_str and prediction_type == 'summer':
+            base_multiplier *= 1.5
+        
+        # Historical insights adjustment
+        period_strength = insights.get('period_strength', 1.0)
+        base_multiplier *= min(2.0, max(0.5, period_strength))
+        
+        return base_multiplier
+
+    def _get_winter_category_base(self, category):
+        """Base estimates for winter period (Dec-Feb, ~90 days)"""
+        category_str = str(category).lower()
+        
+        if 'under garment' in category_str:
+            return 8
+        elif 'winter' in category_str or 'jacket' in category_str:
+            return 12
+        elif 'top' in category_str or 'pant' in category_str:
+            return 6
+        elif 'dress' in category_str:
+            return 4
+        else:
+            return 5
+
+    def _get_summer_category_base(self, category):
+        """Base estimates for summer period (Jun-Aug, ~90 days)"""
+        category_str = str(category).lower()
+        
+        if 'under garment' in category_str:
+            return 9
+        elif 'summer' in category_str or 'shorts' in category_str:
+            return 10
+        elif 'top' in category_str:
+            return 8
+        elif 'dress' in category_str:
+            return 7
+        else:
+            return 5
+
+    def _get_yearly_category_base(self, category):
+        """Base estimates for full year (365 days)"""
+        return self._get_winter_category_base(category) * 4  # Scale by ~4x
+
+    def _get_daily_category_base(self, category):
+        """Base daily estimates for custom periods"""
+        return self._get_yearly_category_base(category) / 365
+
+    def _add_period_specific_features(self, pred_features, prediction_start, prediction_end):
+        """Add features specific to the prediction period"""
+        
+        # Month-based features
+        start_month = prediction_start.month
+        end_month = prediction_end.month
+        
+        # Season indicators
+        pred_features['prediction_includes_winter'] = int(
+            any(month in [12, 1, 2] for month in range(start_month, end_month + 1))
+        )
+        pred_features['prediction_includes_summer'] = int(
+            any(month in [6, 7, 8] for month in range(start_month, end_month + 1))
+        )
+        pred_features['prediction_includes_spring'] = int(
+            any(month in [3, 4, 5] for month in range(start_month, end_month + 1))
+        )
+        pred_features['prediction_includes_autumn'] = int(
+            any(month in [9, 10, 11] for month in range(start_month, end_month + 1))
+        )
+        
+        # Holiday periods
+        pred_features['prediction_includes_holiday'] = int(
+            start_month <= 12 and end_month >= 12  # December holidays
+        )
+        
+        return pred_features
+
+    def predict_seasonal_demand(self, prediction_features_df):
+        """Generate predictions with seasonal intelligence"""
+        
+        if not self.models:
+            raise ValueError("No models trained. Call train_ensemble_model() first.")
+        
+        # Use existing ensemble prediction logic
+        predictions = self.predict_demand_ensemble_advanced(prediction_features_df)
+        
+        # Add seasonal context
+        predictions['seasonal_period'] = getattr(self, 'prediction_type', 'custom')
+        predictions['prediction_days'] = getattr(self, 'prediction_horizon', 365)
+        
+        return predictions
+
+
+        # Wrapper methods to maintain compatibility
     def train_model(self, features_df, **kwargs):
         """Train the ensemble model"""
         return self.train_ensemble_model(features_df, **kwargs)
-    
+
     def create_prediction_features(self, products_df):
         """Create prediction features"""
         return self.create_enhanced_prediction_features(products_df)
-    
+
     def predict_demand(self, prediction_features_df):
         """Generate predictions using ensemble"""
         return self.predict_demand_ensemble(prediction_features_df)
