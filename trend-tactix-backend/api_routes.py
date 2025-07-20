@@ -1,35 +1,12 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import request, jsonify
+from app import app, forecaster, training_sales_data, training_inventory_data, prediction_products_data, trained_model, brand_config, validation_results, DATA_FOLDER
 import pandas as pd
 import numpy as np
 import os
 import json
 from datetime import datetime, timedelta
 import traceback
-
-# Import our OPTIMIZED forecasting logic
-# from optimized_forecaster import OptimizedInventoryForecaster
 from advanced_model_optimization import AdvancedOptimizedForecaster
-
-app = Flask(__name__)
-CORS(app, 
-     origins=['*'],  # Allow all origins
-     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-     allow_headers=['Content-Type', 'Authorization'])
-
-# Global variables
-forecaster = None
-training_sales_data = None
-training_inventory_data = None
-prediction_products_data = None
-trained_model = None
-brand_config = {}
-validation_results = []
-
-DATA_FOLDER = 'data'
-
-# Ensure data folder exists
-os.makedirs(DATA_FOLDER, exist_ok=True)
 
 @app.route('/api/debug-routes', methods=['GET'])
 def debug_routes():
@@ -2148,9 +2125,3 @@ def calculate_seasonal_factor(category, season, prediction_type):
         base_factor *= 1.5
     
     return round(base_factor, 2)
-
-
-
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)

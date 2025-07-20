@@ -60,7 +60,7 @@ import InventoryDashboard from './Components/InventoryDashboard';
 import InitialStockDistribution from './Components/InitialStockDistribution';
 import NotificationsPage from './Components/NotificationsPage';
 import UserManagement from './Components/UserManagement';
-import SignIn from './Components/Signin';
+import SignIn from './Components/SignIn';
 
 export default function App() {
   const [activeItem, setActiveItem] = useState('dashboard');
