@@ -28,6 +28,7 @@ trend-tactix-backend/__pycache__/
 
 # Environment and config
 .env
+myenv
 .env.*
 *.local
 
