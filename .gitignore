@@ -7,18 +7,40 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependency directories
+node_modules/
+trend-tactix-webapp/node_modules/
+
+# Build output
+/build/
+trend-tactix-webapp/build/
+dist/
+trend-tactix-webapp/dist/
+dist-ssr/
+trend-tactix-webapp/dist-ssr/
+
+# Python
+venv/
+trend-tactix-backend/venv/
+__pycache__/
+trend-tactix-backend/__pycache__/
+*.pyc
+
+# Environment and config
+.env
+.env.*
 *.local
 
-# Editor directories and files
-.vscode/*
+# IDE/project files
+.vscode/
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+Thumbs.db
