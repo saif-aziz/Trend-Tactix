@@ -809,6 +809,19 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
         encoders_path = os.path.join(model_dir, "encoders.joblib")
         joblib.dump(self.label_encoders, encoders_path)
         
+        # Save category_stats DataFrame (critical for predictions)
+        if hasattr(self, 'category_stats') and isinstance(self.category_stats, pd.DataFrame) and len(self.category_stats) > 0:
+            category_stats_path = os.path.join(model_dir, "category_stats.joblib")
+            joblib.dump(self.category_stats, category_stats_path)
+            print(f"   ✅ Saved category_stats: {len(self.category_stats)} categories")
+        
+        # Save brand_features list
+        if hasattr(self, 'brand_features') and self.brand_features:
+            brand_features_path = os.path.join(model_dir, "brand_features.json")
+            with open(brand_features_path, 'w') as f:
+                json.dump(self.brand_features, f)
+            print(f"   ✅ Saved brand_features: {len(self.brand_features)} features")
+        
         print(f"✅ Models saved to {model_dir}")
         return model_dir
     
@@ -846,6 +859,25 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
         encoders_path = os.path.join(model_dir, "encoders.joblib")
         if os.path.exists(encoders_path):
             self.label_encoders = joblib.load(encoders_path)
+        
+        # Load category_stats DataFrame (critical for predictions)
+        category_stats_path = os.path.join(model_dir, "category_stats.joblib")
+        if os.path.exists(category_stats_path):
+            self.category_stats = joblib.load(category_stats_path)
+            print(f"   ✅ Loaded category_stats: {len(self.category_stats)} categories")
+        else:
+            self.category_stats = pd.DataFrame()  # Empty DataFrame, not dict
+            print(f"   ⚠️ No category_stats found, using empty DataFrame")
+        
+        # Load brand_features list
+        brand_features_path = os.path.join(model_dir, "brand_features.json")
+        if os.path.exists(brand_features_path):
+            with open(brand_features_path, 'r') as f:
+                self.brand_features = json.load(f)
+            print(f"   ✅ Loaded brand_features: {len(self.brand_features)} features")
+        else:
+            self.brand_features = []
+            print(f"   ⚠️ No brand_features found")
         
         print(f"✅ Models loaded from {model_dir}")
         return metadata
@@ -1358,7 +1390,14 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
         prediction_end = getattr(self, 'prediction_end_date', datetime.now() + timedelta(days=365))
         prediction_days = getattr(self, 'prediction_horizon', 365)
         
+        # === CRITICAL: Scale predictions by period length ===
+        # Models are trained on full-year data, so predictions need to be scaled
+        # for shorter periods
+        REFERENCE_DAYS = 365  # The model was trained assuming full year
+        period_scale_factor = prediction_days / REFERENCE_DAYS
+        
         print(f"🎯 Applying business rules for {prediction_type} period ({prediction_days} days)")
+        print(f"   📐 Period scale factor: {period_scale_factor:.3f} (compared to {REFERENCE_DAYS} day reference)")
         
         for i, (_, row) in enumerate(prediction_features_df.iterrows()):
             pred = predictions[i]
@@ -1379,6 +1418,11 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             
             # Apply seasonal multiplier FIRST
             pred = pred * seasonal_multiplier
+            
+            # === APPLY PERIOD LENGTH SCALING ===
+            # Scale predictions based on how many days we're forecasting
+            # This ensures Q1 (90 days) predictions are ~25% of full year
+            pred = pred * period_scale_factor
             
             # Enhanced category-based adjustments
             if any(keyword in category.lower() for keyword in ['under garments', 'basic']):
@@ -1431,19 +1475,46 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             random_factor = np.random.uniform(0.9, 1.15)
             adjusted_predictions[i] *= random_factor
             
-            # Final constraints
-            adjusted_predictions[i] = max(int(adjusted_predictions[i]), 1)
-            adjusted_predictions[i] = min(adjusted_predictions[i], 50)
+            # Final constraints (scaled by period length)
+            # Minimum 1 unit, maximum scales with period
+            min_demand = 1
+            max_demand = max(5, int(50 * period_scale_factor))  # Scale max by period
             
-            print(f"   Final prediction: {adjusted_predictions[i]} (original: {predictions[i]:.1f})")
+            adjusted_predictions[i] = max(int(adjusted_predictions[i]), min_demand)
+            adjusted_predictions[i] = min(adjusted_predictions[i], max_demand)
+            
+            print(f"   Final prediction: {adjusted_predictions[i]} (original: {predictions[i]:.1f}, scale: {period_scale_factor:.2f})")
         
         return adjusted_predictions
-    def _calculate_seasonal_multiplier(self, category, season, prediction_type, prediction_start, prediction_end):
-        """Calculate seasonal multiplier based on period and product attributes"""
+    def _calculate_seasonal_multiplier(self, category, season, prediction_type, prediction_months_or_start, insights_or_end=None):
+        """Calculate seasonal multiplier based on period and product attributes
+        
+        This method handles two call signatures for backward compatibility:
+        1. (category, season, prediction_type, prediction_months, insights) - from parent class
+        2. (category, season, prediction_type, prediction_start, prediction_end) - direct calls
+        """
         
         base_multiplier = 1.0
         
         print(f"   Calculating seasonal multiplier: {prediction_type} for {category}/{season}")
+        
+        # Handle flexible parameter types
+        prediction_months = []
+        if isinstance(prediction_months_or_start, list):
+            # Called with prediction_months list (from parent class)
+            prediction_months = prediction_months_or_start
+        elif hasattr(prediction_months_or_start, 'month'):
+            # Called with datetime objects (prediction_start, prediction_end)
+            try:
+                prediction_start = pd.to_datetime(prediction_months_or_start)
+                prediction_end = pd.to_datetime(insights_or_end) if insights_or_end else prediction_start
+                prediction_months = pd.date_range(prediction_start, prediction_end, freq='M').month.tolist()
+                if not prediction_months:
+                    # Handle case where date range is less than a month
+                    prediction_months = [prediction_start.month]
+            except Exception as e:
+                print(f"   Warning: Could not parse dates: {e}")
+                prediction_months = []
         
         # STRONG seasonal adjustments based on prediction period
         if prediction_type == 'winter':
@@ -1487,13 +1558,13 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             
         else:
             # Custom periods - calculate based on months included
-            prediction_months = pd.date_range(prediction_start, prediction_end, freq='M').month.tolist()
+            # prediction_months is already set at the top of the function
             
             winter_months = [12, 1, 2]
             summer_months = [6, 7, 8]
             
-            winter_overlap = len(set(prediction_months) & set(winter_months))
-            summer_overlap = len(set(prediction_months) & set(summer_months))
+            winter_overlap = len(set(prediction_months) & set(winter_months)) if prediction_months else 0
+            summer_overlap = len(set(prediction_months) & set(summer_months)) if prediction_months else 0
             
             if 'winter' in season.lower() and winter_overlap > 0:
                 base_multiplier = 1.5 + (winter_overlap * 0.3)
@@ -1501,6 +1572,9 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
                 base_multiplier = 1.5 + (summer_overlap * 0.3)
             elif 'open season' in season.lower():
                 base_multiplier = 1.2
+            else:
+                # Default for custom periods
+                base_multiplier = 1.0
         
         # Category seasonal behavior
         category_str = category.lower()
@@ -1654,10 +1728,13 @@ class AdvancedOptimizedForecaster(OptimizedInventoryForecaster):
             category = str(row.get('Category', 'Unknown'))
             
             # Historical category performance during this period
-            if hasattr(self, 'category_stats') and category in self.category_stats:
-                category_info = self.category_stats[category]
-                seasonal_boost = category_info.get('category_market_share', 1.0)
-                pred_features.loc[i, 'category_seasonal_boost'] = seasonal_boost
+            if hasattr(self, 'category_stats') and isinstance(self.category_stats, pd.DataFrame) and len(self.category_stats) > 0:
+                category_matches = self.category_stats[self.category_stats['Category_first'] == category]
+                if len(category_matches) > 0:
+                    seasonal_boost = category_matches.iloc[0].get('category_market_share', 1.0)
+                    pred_features.loc[i, 'category_seasonal_boost'] = seasonal_boost
+                else:
+                    pred_features.loc[i, 'category_seasonal_boost'] = 1.0
             else:
                 pred_features.loc[i, 'category_seasonal_boost'] = 1.0
             

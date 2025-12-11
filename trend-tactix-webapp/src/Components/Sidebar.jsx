@@ -1,16 +1,16 @@
-// Updated Sidebar.jsx with Initial Stock Distribution page
+// Updated Sidebar.jsx with Model Training and AI Stock Distribution pages
 import React from 'react';
-import { Home, BarChart2, Bell, Users, Settings, LogOut, Package, Brain } from 'lucide-react';
+import { Home, BarChart2, Bell, Users, Settings, LogOut, Package, Brain, Cpu, Zap } from 'lucide-react';
 
 export default function Sidebar({ activeItem, setActiveItem, currentUser, onSignOut }) {
   const menuItems = [
     { id: 'dashboard', icon: Home, label: 'KPI Dashboard' },
     { id: 'analytics', icon: BarChart2, label: 'Sales Analytics' },
     { id: 'inventory', icon: Package, label: 'Inventory Analytics' },
-    { id: 'distribution', icon: Brain, label: 'AI Stock Distribution' }, // New item
+    { id: 'model-training', icon: Cpu, label: 'Model Training', highlight: true }, // Training setup
+    { id: 'distribution', icon: Zap, label: 'AI Predictions' }, // Quick predictions
     { id: 'notifications', icon: Bell, label: 'Notifications' },
     { id: 'users', icon: Users, label: 'Manage Team' },
-    // { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
   const handleSignOut = () => {
@@ -54,7 +54,9 @@ export default function Sidebar({ activeItem, setActiveItem, currentUser, onSign
               className={`flex items-center py-3 px-3 lg:px-4 rounded-lg w-full transition-colors ${
                 activeItem === item.id 
                   ? 'bg-indigo-700 text-white' 
-                  : 'text-indigo-200 hover:bg-indigo-700/50'
+                  : item.highlight 
+                    ? 'text-indigo-100 hover:bg-indigo-700/50 bg-indigo-800/50'
+                    : 'text-indigo-200 hover:bg-indigo-700/50'
               }`}
               onClick={() => setActiveItem(item.id)}
             >
@@ -63,6 +65,11 @@ export default function Sidebar({ activeItem, setActiveItem, currentUser, onSign
               {item.id === 'notifications' && (
                 <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                   9
+                </span>
+              )}
+              {item.highlight && activeItem !== item.id && (
+                <span className="hidden lg:block ml-auto bg-purple-500 text-white text-xs font-bold rounded px-1.5 py-0.5">
+                  Setup
                 </span>
               )}
             </button>

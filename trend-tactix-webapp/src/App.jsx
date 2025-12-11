@@ -51,12 +51,13 @@
 
 //new code
 
-// Updated App.jsx with Initial Stock Distribution page
+// Updated App.jsx with Model Training and AI Stock Distribution pages
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Components/Sidebar';
 import KPIDashboard from './Components/KPIDashboard';
 import SalesDashboard from './Components/SalesDashboard';
 import InventoryDashboard from './Components/InventoryDashboard';
+import ModelTraining from './Components/ModelTraining';
 import InitialStockDistribution from './Components/InitialStockDistribution';
 import NotificationsPage from './Components/NotificationsPage';
 import UserManagement from './Components/UserManagement';
@@ -124,6 +125,7 @@ export default function App() {
         {activeItem === 'dashboard' && <KPIDashboard />}
         {activeItem === 'analytics' && <SalesDashboard />}
         {activeItem === 'inventory' && <InventoryDashboard />}
+        {activeItem === 'model-training' && <ModelTraining />}
         {activeItem === 'distribution' && <InitialStockDistribution />}
         {activeItem === 'notifications' && <NotificationsPage />}
         {activeItem === 'users' && <UserManagement />}

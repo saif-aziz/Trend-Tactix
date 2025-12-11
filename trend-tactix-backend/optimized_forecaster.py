@@ -1097,7 +1097,7 @@ class OptimizedInventoryForecaster:
                 adjusted_predictions[i] = int(adjusted_predictions[i] * 1.05)  # Boys clothing focused
             
             # Category performance tier adjustments
-            if hasattr(self, 'category_stats'):
+            if hasattr(self, 'category_stats') and isinstance(self.category_stats, pd.DataFrame) and len(self.category_stats) > 0:
                 # Find category performance
                 category_matches = self.category_stats[
                     self.category_stats['Category_first'] == category
@@ -1148,7 +1148,7 @@ class OptimizedInventoryForecaster:
             
             # Category data availability
             category = row.get('Category_first', row.get('Category', 'Unknown'))
-            if hasattr(self, 'category_stats'):
+            if hasattr(self, 'category_stats') and isinstance(self.category_stats, pd.DataFrame) and len(self.category_stats) > 0:
                 cat_stats = self.category_stats[
                     self.category_stats['Category_first'] == category
                 ]
@@ -1263,7 +1263,14 @@ class OptimizedInventoryForecaster:
         # breakpoint()
 
         # Add category-based intelligent estimates
-        if hasattr(self, 'category_stats') and 'Category' in pred_features.columns:
+        # Check that category_stats is a valid non-empty DataFrame
+        has_valid_category_stats = (
+            hasattr(self, 'category_stats') and 
+            isinstance(self.category_stats, pd.DataFrame) and 
+            len(self.category_stats) > 0
+        )
+        
+        if has_valid_category_stats and 'Category' in pred_features.columns:
             pred_features = pred_features.merge(
                 self.category_stats, 
                 left_on='Category', 
@@ -1271,11 +1278,18 @@ class OptimizedInventoryForecaster:
                 how='left'
             )
             # added debugging
+            print(f"✅ Merged with category_stats: {len(self.category_stats)} categories")
             print(pred_features)
-            # breakpoint()
             # Fill missing with global averages
             global_avg = self.category_stats['category_avg_sales_per_sku'].mean()
             pred_features['category_avg_sales_per_sku'] = pred_features['category_avg_sales_per_sku'].fillna(global_avg)
+        else:
+            # No category stats available - set default values
+            print(f"⚠️ No valid category_stats available, using default values")
+            pred_features['category_avg_sales_per_sku'] = 8.0
+            pred_features['category_competition'] = 50
+            pred_features['category_market_share'] = 0.05
+            pred_features['category_saturation'] = 0.1
         
         # IMPROVED: Create more realistic and varied estimates for new products
         np.random.seed(42)  # For reproducible results
@@ -1426,10 +1440,8 @@ class OptimizedInventoryForecaster:
 
             print(f'Insights : ')
             print(seasonal_insights)
-            breakpoint()
         else:
             print(f'No Insights, No output from extract_seasonal_insights')
-            breakpoint()
             seasonal_insights = {}
         
         np.random.seed(42)  # For reproducible results
@@ -1546,7 +1558,6 @@ class OptimizedInventoryForecaster:
         
         if not hasattr(self, 'training_sales_data') or self.training_sales_data is None:
             print(f'No sales training data')
-            breakpoint()
             return insights
         
         sales_df = self.training_sales_data

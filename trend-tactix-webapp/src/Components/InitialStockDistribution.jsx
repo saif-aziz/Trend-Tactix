@@ -862,6 +862,7 @@ function PredictionPeriodSelector({
   const [historicalAnalysis, setHistoricalAnalysis] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSettingPeriod, setIsSettingPeriod] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!currentPeriod); // Start collapsed if period is set
 
   // Predefined period options
   const predefinedPeriods = {
@@ -1038,74 +1039,73 @@ function PredictionPeriodSelector({
   );
 
   return (
-    <div className={`prediction-period-selector bg-white p-6 rounded-lg shadow-md mb-6 border-2 ${
-      currentPeriod ? 'border-green-200 bg-green-50' : 'border-blue-200'
+    <div className={`prediction-period-selector bg-white rounded-lg shadow-sm mb-4 border ${
+      currentPeriod ? 'border-green-200' : 'border-blue-200'
     }`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-800 flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-          Set Prediction Period for Demand Forecasting
-        </h3>
-        
-        {currentPeriod && (
-          <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-2 rounded-lg">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              Period Set: {currentPeriod.label} ({currentPeriod.total_days} days)
-            </span>
+      {/* Collapsible Header - Always Visible */}
+      <div 
+        className={`flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors rounded-lg ${
+          currentPeriod ? 'bg-green-50' : 'bg-blue-50'
+        }`}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center space-x-3">
+          <Calendar className={`w-4 h-4 ${currentPeriod ? 'text-green-600' : 'text-blue-600'}`} />
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800">
+              {currentPeriod ? 'Prediction Period' : 'Set Prediction Period'}
+            </h3>
+            {currentPeriod && (
+              <p className="text-xs text-green-700">
+                {currentPeriod.label} • {currentPeriod.start_date} to {currentPeriod.end_date} ({currentPeriod.total_days} days)
+              </p>
+            )}
           </div>
-        )}
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          {currentPeriod && (
+            <span className="flex items-center text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Configured
+            </span>
+          )}
+          <button className="p-1 text-gray-500 hover:text-gray-700">
+            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
       
-      {!isModelTrained && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-          <p className="font-medium flex items-center">
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            Model Training Required
-          </p>
-          <p className="text-sm">Please complete model training before setting prediction periods.</p>
-        </div>
-      )}
+      {/* Expandable Content */}
+      {isExpanded && (
+        <div className="p-4 border-t border-gray-100">
+          {!isModelTrained && (
+            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 mb-4 text-sm">
+              <p className="font-medium flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Model Training Required
+              </p>
+              <p className="text-xs mt-1">Please complete model training before setting prediction periods.</p>
+            </div>
+          )}
 
-      {/* Current Period Display */}
-      {currentPeriod && (
-        <div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
-          <h4 className="font-medium text-green-800 mb-2">Current Prediction Configuration</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm text-green-700">
-            <div>
-              <span className="font-medium">Period:</span> {currentPeriod.label}
-            </div>
-            <div>
-              <span className="font-medium">Duration:</span> {currentPeriod.total_days} days
-            </div>
-            <div>
-              <span className="font-medium">Start:</span> {currentPeriod.start_date}
-            </div>
-            <div>
-              <span className="font-medium">End:</span> {currentPeriod.end_date}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Period Selection */}
-      <div className="mb-6">
-        <h4 className="font-medium text-gray-700 mb-3">Quick Period Selection</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      {/* Quick Period Selection - Compact */}
+      <div className="mb-4">
+        <h4 className="text-xs font-medium text-gray-600 mb-2">Quick Period Selection</h4>
+        <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-5 gap-2">
           {Object.entries(predefinedPeriods).map(([key, period]) => (
             <button
               key={key}
-              onClick={() => handlePredefinedPeriod(key)}
+              onClick={(e) => { e.stopPropagation(); handlePredefinedPeriod(key); }}
               disabled={disabled}
-              className={`p-3 text-left border rounded-lg transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`p-2 text-left border rounded transition-all duration-200 hover:shadow-sm disabled:opacity-50 ${
                 startDate === period.start && endDate === period.end
                   ? 'border-blue-500 bg-blue-50 text-blue-800'
                   : 'border-gray-200 hover:border-blue-300'
               }`}
             >
-              <div className="font-medium text-sm">{period.label}</div>
-              <div className="text-xs text-gray-500 mt-1">{period.description}</div>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="font-medium text-xs leading-tight">{period.label}</div>
+              <div className="text-xs text-gray-400 mt-0.5">
                 {Math.ceil((new Date(period.end) - new Date(period.start)) / (1000 * 60 * 60 * 24)) + 1} days
               </div>
             </button>
@@ -1113,115 +1113,78 @@ function PredictionPeriodSelector({
         </div>
       </div>
 
-      {/* Custom Date Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Prediction Start Date
-          </label>
+      {/* Custom Date Selection + Summary - Inline Compact */}
+      <div className="flex items-end gap-3 mb-3">
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
           <input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => { e.stopPropagation(); setStartDate(e.target.value); }}
+            onClick={(e) => e.stopPropagation()}
             disabled={disabled}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Prediction End Date
-          </label>
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
           <input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => { e.stopPropagation(); setEndDate(e.target.value); }}
+            onClick={(e) => e.stopPropagation()}
             disabled={disabled}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
         </div>
-      </div>
-
-      {/* Period Summary */}
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-        <div className="flex justify-between items-center">
-          <div>
-            <span className="text-sm font-medium text-blue-800">
-              Selected Period: {isCustomPeriod ? 'Custom' : 'Predefined'}
-            </span>
-            <div className="text-xs text-blue-600 mt-1">
-              {startDate} to {endDate} ({calculateDays()} days)
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm font-medium text-blue-800">Type: {predictionType}</div>
-            <div className="text-xs text-blue-600">
-              {predictionType === 'full_year' ? 'Annual Planning' :
-               predictionType === 'quarter' ? 'Quarterly Planning' :
-               predictionType === 'winter' || predictionType === 'summer' ? 'Seasonal Planning' :
-               'Custom Period Planning'}
-            </div>
-          </div>
+        <div className="px-3 py-1.5 bg-blue-50 rounded border border-blue-200 text-center">
+          <div className="text-lg font-bold text-blue-700">{calculateDays()}</div>
+          <div className="text-xs text-blue-600">days</div>
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between">
         <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+          onClick={(e) => { e.stopPropagation(); handleSetPeriod(); }}
+          disabled={isSettingPeriod || (!startDate || !endDate)}
+          className={`px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium transition-all ${
+            (isSettingPeriod || (!startDate || !endDate))
+              ? 'opacity-50 cursor-not-allowed' 
+              : 'hover:bg-blue-700'
+          }`}
         >
-          <Settings className="w-4 h-4 mr-1" />
-          {showAdvanced ? 'Hide' : 'Show'} Advanced Options
-          {showAdvanced ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
-        </button>
-
-        <div className="flex items-center space-x-3">
-          {currentPeriod && (
-            <span className="text-sm text-green-600 flex items-center">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Period configured
-            </span>
+          {isSettingPeriod ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            'Apply'
           )}
-          
-          <button
-              onClick={handleSetPeriod}
-              disabled={isSettingPeriod || (!startDate || !endDate)} // FIXED: Only disable if actually setting or invalid dates
-              className={`px-4 py-2 bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 ${
-                (isSettingPeriod || (!startDate || !endDate))
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:bg-blue-700 hover:transform hover:scale-105'
-              }`}
-            >
-              {isSettingPeriod ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 inline animate-spin" />
-                  Setting Period...
-                </>
-              ) : (
-                <>
-                  <Calendar className="w-4 h-4 mr-2 inline" />
-                  Set Prediction Period
-                </>
-              )}
-            </button>
-        </div>
+        </button>
       </div>
 
-      {/* Advanced Options */}
+      {/* Advanced Options Toggle */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowAdvanced(!showAdvanced); }}
+          className="flex items-center text-xs text-gray-500 hover:text-gray-700"
+        >
+          <Settings className="w-3 h-3 mr-1" />
+          Advanced
+          {showAdvanced ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+        </button>
+        <span className="text-xs text-gray-500">
+          Type: {predictionType === 'full_year' ? 'Annual' : predictionType === 'quarter' ? 'Quarter' : predictionType}
+        </span>
+      </div>
+
+      {/* Advanced Options - Compact */}
       {showAdvanced && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h5 className="font-medium text-gray-700 mb-3">Advanced Configuration</h5>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Prediction Type Override
-              </label>
+        <div className="mt-3 p-3 bg-gray-50 rounded border border-gray-200">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Type Override</label>
               <select
                 value={predictionType}
-                onChange={(e) => setPredictionType(e.target.value)}
+                onChange={(e) => { e.stopPropagation(); setPredictionType(e.target.value); }}
+                onClick={(e) => e.stopPropagation()}
                 disabled={disabled}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               >
                 <option value="custom">Custom Period</option>
                 <option value="winter">Winter Season</option>
@@ -1232,41 +1195,15 @@ function PredictionPeriodSelector({
                 <option value="full_year">Full Year</option>
               </select>
             </div>
+            <div className="flex-1 text-xs text-gray-500">
+              💡 Model uses historical data from matching periods
+            </div>
           </div>
-          
-          <div className="mt-3 text-xs text-gray-600">
-            <p><strong>Tip:</strong> The model will use historical data from the same periods in previous years to make predictions for your selected period.</p>
-          </div>
+        </div>
+      )}
         </div>
       )}
 
-      {/* Historical Analysis Display */}
-      {historicalAnalysis && historicalAnalysis.summary && (
-        <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-          <h5 className="font-medium text-purple-800 mb-2 flex items-center">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Historical Analysis for This Period
-          </h5>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div className="text-center">
-              <div className="font-bold text-purple-600">{historicalAnalysis.summary.historical_periods_found || 0}</div>
-              <div className="text-purple-700">Historical Periods</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-purple-600">{historicalAnalysis.summary.average_total_sales || 0}</div>
-              <div className="text-purple-700">Avg Sales</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-purple-600">{historicalAnalysis.summary.average_unique_products || 0}</div>
-              <div className="text-purple-700">Avg Products</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-purple-600">{historicalAnalysis.summary.seasonal_strength || 'N/A'}</div>
-              <div className="text-purple-700">Seasonal Strength</div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2558,57 +2495,52 @@ function CategoriesGrid({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
+      {/* Compact Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center space-x-4">
           <button
             onClick={onBackToAnalytics}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
+            className="flex items-center text-gray-600 hover:text-gray-900 text-sm"
           >
-            <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-            Back to Dashboard
+            <ArrowRight className="w-4 h-4 mr-1 rotate-180" />
+            Back
           </button>
-          <h2 className="text-2xl font-bold text-gray-900">New Product Categories</h2>
-          <p className="text-gray-600">{categories.length} categories for 2025 forecasting</p>
+          <div className="border-l border-gray-300 pl-4">
+            <h2 className="text-lg font-bold text-gray-900">Product Categories</h2>
+            <p className="text-xs text-gray-600">{categories.length} categories for 2025</p>
+          </div>
         </div>
 
         {/* Category-Level Forecast Controls */}
-        <div className="flex items-center space-x-3">
-          {selectedCategories.length > 0 && (
-            <div className="flex items-center space-x-2 bg-blue-50 rounded-lg p-2">
-              <span className="text-sm font-medium text-blue-700">
-                {selectedCategories.length} categories selected
-              </span>
-              <button
-                onClick={handleGenerateCategoryForecasts}
-                disabled={isGeneratingCategoryForecast}
-                className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {isGeneratingCategoryForecast ? (
-                  <>
-                    <RefreshCw className="w-3 h-3 mr-1 inline animate-spin" />
-                    Generating Category Forecasts...
-                  </>
-                ) : (
-                  <>
-                    <BarChart3 className="w-3 h-3 mr-1 inline" />
-                    Generate Category Forecasts
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setSelectedCategories([])}
-                className="p-1 text-gray-500 hover:text-gray-700"
-                title="Clear selection"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
+        {selectedCategories.length > 0 && (
+          <div className="flex items-center space-x-2 bg-blue-50 rounded-lg px-3 py-1.5">
+            <span className="text-xs font-medium text-blue-700">
+              {selectedCategories.length} selected
+            </span>
+            <button
+              onClick={handleGenerateCategoryForecasts}
+              disabled={isGeneratingCategoryForecast}
+              className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {isGeneratingCategoryForecast ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : (
+                'Generate Forecasts'
+              )}
+            </button>
+            <button
+              onClick={() => setSelectedCategories([])}
+              className="p-0.5 text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* Compact Category Grid - More columns, smaller cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {categories.map((category) => {
           const isSelected = selectedCategories.includes(category.name);
           const categoryForecast = categoryForecasts[category.name];
@@ -2616,199 +2548,99 @@ function CategoriesGrid({
           return (
             <div
               key={category.name}
-              className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-2 ${
-                isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent hover:border-purple-500'
-              } p-6 relative`}
+              className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border ${
+                isSelected ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-purple-400'
+              } p-3 relative cursor-pointer`}
+              onClick={() => onSelectCategory(category.name)}
             >
               {/* Selection Checkbox */}
-              <div className="absolute top-3 right-3">
+              <div className="absolute top-2 right-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleCategorySelection(category.name);
                   }}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                  className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                     isSelected
                       ? 'bg-blue-600 border-blue-600 text-white'
                       : 'border-gray-300 hover:border-blue-400'
                   }`}
                 >
-                  {isSelected && <Check className="w-3 h-3" />}
+                  {isSelected && <Check className="w-2.5 h-2.5" />}
                 </button>
               </div>
 
-              <div 
-                className="text-center cursor-pointer"
-                onClick={() => onSelectCategory(category.name)}
-              >
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Package className="w-8 h-8 text-white" />
+              {/* Compact Card Content */}
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Package className="w-5 h-5 text-white" />
                 </div>
                 
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{category.name}</h3>
-                
-                {/* UPDATED: Fixed Stats Display with Both Product and SKU Counts */}
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex justify-between">
-                    <span>Products:</span>
-                    <span className="font-medium text-green-600">{category.uniqueProducts}</span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-gray-900 truncate pr-4">{category.name}</h3>
+                  
+                  {/* Compact Stats */}
+                  <div className="flex items-center space-x-3 text-xs text-gray-600 mt-1">
+                    <span><span className="font-medium text-green-600">{category.uniqueProducts}</span> products</span>
+                    <span><span className="font-medium text-blue-600">{category.totalSKUs}</span> SKUs</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>SKUs:</span>
-                    <span className="font-medium text-blue-600">{category.totalSKUs}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Avg Demand:</span>
-                    <span className="font-medium">{category.avgDemand}</span>
-                  </div>
-                </div>
-                
-                {/* Category Forecast Results */}
-                {categoryForecast && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <h4 className="text-sm font-semibold text-green-800 mb-2">
-                      <BarChart3 className="w-3 h-3 inline mr-1" />
-                      Category Forecast
-                    </h4>
-                    <div className="space-y-1 text-xs text-green-700">
-                      <div className="flex justify-between">
-                        <span>Total Demand:</span>
-                        <span className="font-bold">{categoryForecast.total_predicted_demand}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Confidence:</span>
-                        <span className="font-bold">{categoryForecast.avg_confidence_score}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Risk Level:</span>
-                        <span className={`font-bold px-1 py-0.5 rounded ${
-                          categoryForecast.category_risk_level === 'LOW' ? 'bg-green-200 text-green-800' :
-                          categoryForecast.category_risk_level === 'MEDIUM' ? 'bg-yellow-200 text-yellow-800' :
-                          'bg-red-200 text-red-800'
-                        }`}>
-                          {categoryForecast.category_risk_level}
-                        </span>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-green-300">
-                        <div className="flex justify-between text-xs">
-                          <span>Avg per SKU:</span>
-                          <span>{categoryForecast.demand_distribution.avg_sku_demand}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Enhanced Category Forecast Results */}
-                {categoryForecast && (
-                  <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200 animate-fadeIn">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-green-800 flex items-center">
-                        <BarChart3 className="w-4 h-4 mr-1" />
-                        Category Forecast Results
-                      </h4>
-                      <div className="px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-bold">
-                        NEW
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-xs text-green-700">
-                      <div className="bg-white rounded p-2">
-                        <div className="text-lg font-bold text-blue-600">{categoryForecast.total_predicted_demand}</div>
-                        <div className="text-xs text-gray-600">Total Demand</div>
-                      </div>
-                      <div className="bg-white rounded p-2">
-                        <div className="text-lg font-bold text-green-600">{categoryForecast.avg_confidence_score}%</div>
-                        <div className="text-xs text-gray-600">Confidence</div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-2 flex justify-between items-center">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        categoryForecast.category_risk_level === 'LOW' ? 'bg-green-200 text-green-800' :
-                        categoryForecast.category_risk_level === 'MEDIUM' ? 'bg-yellow-200 text-yellow-800' :
-                        'bg-red-200 text-red-800'
-                      }`}>
-                        {categoryForecast.category_risk_level} RISK
+                  
+                  {/* Compact Forecast Badge */}
+                  {categoryForecast && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">
+                        {categoryForecast.total_predicted_demand} units
                       </span>
-                      <div className="text-xs text-gray-600">
-                        {categoryForecast.total_skus} SKUs • {categoryForecast.unique_products} Products
-                      </div>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                        categoryForecast.category_risk_level === 'LOW' ? 'bg-green-100 text-green-700' :
+                        categoryForecast.category_risk_level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {categoryForecast.avg_confidence_score}%
+                      </span>
                     </div>
-                    
-                    <div className="mt-2 text-xs text-gray-600 bg-white rounded p-2">
-                      <strong>Avg per SKU:</strong> {categoryForecast.demand_distribution.avg_sku_demand}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="mt-4 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
-                  Click to View Products & SKUs
+                  )}
                 </div>
+              </div>
+              
+              {/* View Products Link */}
+              <div className="mt-2 pt-2 border-t border-gray-100 text-center">
+                <span className="text-xs text-purple-600 font-medium hover:text-purple-800">
+                  View Products →
+                </span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Category Forecast Summary */}
+      {/* Compact Category Forecast Summary */}
       {Object.keys(categoryForecasts).length > 0 && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Target className="w-5 h-5 mr-2 text-blue-600" />
-            Category Forecast Summary
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
-                {Object.values(categoryForecasts).reduce((sum, cf) => sum + cf.total_predicted_demand, 0)}
+        <div className="bg-white rounded-lg shadow-sm p-3 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center">
+              <Target className="w-4 h-4 mr-1 text-blue-600" />
+              Forecast Summary
+            </h3>
+            <div className="flex items-center space-x-4 text-xs">
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-500">Demand:</span>
+                <span className="font-bold text-blue-600">
+                  {Object.values(categoryForecasts).reduce((sum, cf) => sum + cf.total_predicted_demand, 0)}
+                </span>
               </div>
-              <div className="text-sm text-gray-600">Total Category Demand</div>
-              <div className="text-xs text-gray-500 mt-1">Aggregated across all categories</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
-                {Math.round(Object.values(categoryForecasts).reduce((sum, cf) => sum + cf.avg_confidence_score, 0) / Object.keys(categoryForecasts).length)}%
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-500">Confidence:</span>
+                <span className="font-bold text-green-600">
+                  {Math.round(Object.values(categoryForecasts).reduce((sum, cf) => sum + cf.avg_confidence_score, 0) / Object.keys(categoryForecasts).length)}%
+                </span>
               </div>
-              <div className="text-sm text-gray-600">Avg Confidence</div>
-              <div className="text-xs text-gray-500 mt-1">Weighted average</div>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
-                {Object.keys(categoryForecasts).length}
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-500">Categories:</span>
+                <span className="font-bold text-purple-600">
+                  {Object.keys(categoryForecasts).length}
+                </span>
               </div>
-              <div className="text-sm text-gray-600">Categories Forecasted</div>
-              <div className="text-xs text-gray-500 mt-1">With detailed predictions</div>
-            </div>
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">
-                {Object.values(categoryForecasts).reduce((sum, cf) => sum + cf.total_skus, 0)}
-              </div>
-              <div className="text-sm text-gray-600">Total SKUs</div>
-              <div className="text-xs text-gray-500 mt-1">Across all forecasted categories</div>
-            </div>
-          </div>
-
-          {/* Detailed Category Breakdown */}
-          <div className="mt-6">
-            <h4 className="font-medium text-gray-800 mb-3">Detailed Category Breakdown</h4>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {Object.values(categoryForecasts)
-                .sort((a, b) => b.total_predicted_demand - a.total_predicted_demand)
-                .map(categoryForecast => (
-                <div key={categoryForecast.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-900">{categoryForecast.category}</div>
-                    <div className="text-sm text-gray-600">
-                      {categoryForecast.unique_products} products • {categoryForecast.total_skus} SKUs
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-purple-600">{categoryForecast.total_predicted_demand}</div>
-                    <div className="text-xs text-gray-500">{categoryForecast.avg_confidence_score}% confidence</div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -2913,23 +2745,25 @@ function SplitScreenView({
   const selectedProductCodes = selectedProducts.map(p => p.productCode);
 
   return (
-    <div className="h-full flex flex-col relative">
-      {/* Header with Multi-Select Actions */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+    <div className="h-full flex flex-col relative overflow-hidden">
+      {/* Compact Header with Multi-Select Actions */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
             <button
               onClick={onBackToCategories}
-              className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
+              className="flex items-center text-gray-600 hover:text-gray-900 text-sm"
             >
-              <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+              <ArrowRight className="w-4 h-4 mr-1 rotate-180" />
               Back to Categories
             </button>
-            <h2 className="text-xl font-bold text-gray-900">{category}</h2>
-            <p className="text-sm text-gray-600">
-              {showSKULevel ? filteredSKUs.length : filteredProducts.length} {showSKULevel ? 'SKUs' : 'products'} 
-              {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected for forecasting`}
-            </p>
+            <div className="border-l border-gray-300 pl-4">
+              <h2 className="text-lg font-bold text-gray-900">{category}</h2>
+              <p className="text-xs text-gray-600">
+                {showSKULevel ? filteredSKUs.length : filteredProducts.length} {showSKULevel ? 'SKUs' : 'products'} 
+                {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected`}
+              </p>
+            </div>
           </div>
           
           <div className="flex items-center space-x-3">
@@ -3013,22 +2847,23 @@ function SplitScreenView({
               />
             </div>
           </div>
-        </div>
+      </div>
+    </div>
+
+      {/* Compact Forecast Level Selector */}
+      <div className="px-4 py-1 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+        <ForecastLevelSelector 
+            forecastLevel={forecastLevel} 
+            setForecastLevel={setForecastLevel}
+            disabled={isGeneratingDistribution}
+          />
       </div>
 
-      {/* NEW: Forecast Level Selector */}
-      <ForecastLevelSelector 
-          forecastLevel={forecastLevel} 
-          setForecastLevel={setForecastLevel}
-          disabled={isGeneratingDistribution}
-        />
-      
-
-      {/* Split Content */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Split Content - takes remaining height */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Half - Products/SKUs */}
-        <div className="w-1/2 border-r border-gray-200 overflow-y-auto p-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="w-1/2 border-r border-gray-200 overflow-y-auto p-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {showSKULevel ? (
               // SKU Level View
               filteredSKUs.map(sku => (
@@ -3064,7 +2899,7 @@ function SplitScreenView({
         </div>
 
         {/* Right Half - Distribution */}
-        <div className="w-1/2 overflow-y-auto p-4">
+        <div className="w-1/2 overflow-y-auto p-3">
           {selectedProducts.length > 0 ? (
             <MultiDistributionPanel
               selectedProducts={selectedProducts}
@@ -3172,14 +3007,14 @@ function ProductLevelCard({
   }, 0);
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-2 border-transparent hover:border-purple-300 p-4">
-      <div className="space-y-3">
+    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-purple-300 p-3">
+      <div className="space-y-2">
         {/* Header with Multi-Select Checkbox */}
         <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
+          <div className="flex items-start space-x-2">
             <button
               onClick={handleProductSelect}
-              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+              className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                 allSKUsSelected
                   ? 'bg-purple-600 border-purple-600 text-white'
                   : someSKUsSelected
@@ -3187,75 +3022,73 @@ function ProductLevelCard({
                   : 'border-gray-300 hover:border-purple-400'
               }`}
             >
-              {allSKUsSelected && <Check className="w-3 h-3" />}
-              {someSKUsSelected && !allSKUsSelected && <Minus className="w-3 h-3 text-purple-600" />}
+              {allSKUsSelected && <Check className="w-2.5 h-2.5" />}
+              {someSKUsSelected && !allSKUsSelected && <Minus className="w-2.5 h-2.5 text-purple-600" />}
             </button>
             
             <div>
-              <h3 className="text-base font-semibold text-gray-900">{product.name}</h3>
-              <p className="text-sm text-gray-500">{product.skus.length} SKUs available</p>
+              <h3 className="text-sm font-semibold text-gray-900 leading-tight">{product.name}</h3>
+              <p className="text-xs text-gray-500">{product.skus.length} SKUs available</p>
             </div>
           </div>
           
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
             {product.category}
           </span>
         </div>
 
-        {/* Product Summary */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        {/* Product Summary - Compact */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
           <div className="flex justify-between">
-            <span className="text-gray-600">New Product:</span>
-            <span className="font-medium">Yes</span>
+            <span className="text-gray-500">New Product:</span>
+            <span className="font-medium text-green-600">Yes</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Predicted:</span>
-            <span className="font-medium">{totalPredictedDemand}</span>
+            <span className="text-gray-500">Predicted:</span>
+            <span className="font-bold text-purple-600">{totalPredictedDemand}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">SKUs:</span>
+            <span className="text-gray-500">SKUs:</span>
             <span className="font-medium">{product.skus.length}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Avg Confidence:</span>
+            <span className="text-gray-500">Avg Confidence:</span>
             <span className="font-medium">{Math.round(avgConfidence)}%</span>
           </div>
         </div>
 
-        {/* Selection Status */}
+        {/* Selection Status - Compact */}
         {someSKUsSelected && (
-          <div className="p-2 bg-purple-50 rounded-lg">
-            <p className="text-sm text-purple-700">
-              {selectedSKUs.length} of {product.skus.length} SKUs selected for forecasting
-            </p>
+          <div className="px-2 py-1 bg-purple-50 rounded text-xs text-purple-700">
+            {selectedSKUs.length}/{product.skus.length} SKUs selected
           </div>
         )}
 
-        {/* Expand/Collapse SKUs */}
+        {/* Expand/Collapse SKUs - Compact */}
         <button
           onClick={onToggleExpansion}
-          className="w-full flex items-center justify-center py-2 text-sm font-medium text-gray-600 hover:text-gray-900 border-t border-gray-200"
+          className="w-full flex items-center justify-center py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border-t border-gray-100 mt-1"
         >
           {isExpanded ? (
             <>
-              <ChevronUp className="w-4 h-4 mr-1" />
+              <ChevronUp className="w-3 h-3 mr-1" />
               Hide SKUs
             </>
           ) : (
             <>
-              <ChevronDown className="w-4 h-4 mr-1" />
+              <ChevronDown className="w-3 h-3 mr-1" />
               Show SKUs
             </>
           )}
         </button>
 
-        {/* Expanded SKU List */}
+        {/* Expanded SKU List - Compact */}
         {isExpanded && (
-          <div className="space-y-2 border-t border-gray-200 pt-3">
+          <div className="space-y-1 border-t border-gray-100 pt-2 max-h-40 overflow-y-auto">
             {product.skus.map(sku => (
               <div
                 key={sku.productCode}
-                className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                className={`p-2 rounded border cursor-pointer transition-colors ${
                   selectedProductCodes.includes(sku.productCode)
                     ? 'border-purple-300 bg-purple-50'
                     : 'border-gray-200 hover:border-purple-200'
@@ -3266,16 +3099,16 @@ function ProductLevelCard({
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{sku.productCode}</p>
+                    <p className="text-xs font-medium text-gray-900">{sku.productCode}</p>
                     <p className="text-xs text-gray-500">
                       {sku.attributes.size} • {sku.attributes.color}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">New SKU</p>
+                    <p className="text-xs text-green-600 font-medium">New</p>
                     {forecasts[sku.productCode] && (
-                      <p className="text-xs text-gray-500">
-                        Pred: {forecasts[sku.productCode].predictedDemand}
+                      <p className="text-xs text-purple-600 font-bold">
+                        {forecasts[sku.productCode].predictedDemand}
                       </p>
                     )}
                   </div>
@@ -3655,15 +3488,15 @@ const handleIncrementalLearning = async (newSalesData) => {
 // Add this component before InitialStockDistribution function (around line 1150)
 function ForecastLevelSelector({ forecastLevel, setForecastLevel, disabled = false }) {
   return (
-    <div className="flex items-center space-x-4 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex items-center space-x-3">
       <div className="flex items-center space-x-2">
         <Target className="w-4 h-4 text-purple-600" />
-        <label className="text-sm font-medium text-gray-700">Forecast Level:</label>
+        <label className="text-xs font-medium text-gray-700">Forecast Level:</label>
         <select
           value={forecastLevel}
           onChange={(e) => setForecastLevel(e.target.value)}
           disabled={disabled}
-          className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
         >
           <option value="category">Category Level</option>
           <option value="product">Product Level</option>
@@ -3671,17 +3504,17 @@ function ForecastLevelSelector({ forecastLevel, setForecastLevel, disabled = fal
         </select>
       </div>
       
-      <div className="text-sm text-gray-600 flex-1">
+      <div className="text-xs text-gray-500">
         {forecastLevel === 'category' && (
           <span className="flex items-center">
             <BarChart3 className="w-3 h-3 mr-1 text-blue-500" />
-            Aggregate demand across all SKUs in selected categories
+            Individual SKU-level demand predictions
           </span>
         )}
         {forecastLevel === 'product' && (
           <span className="flex items-center">
             <Package className="w-3 h-3 mr-1 text-green-500" />
-            Aggregate demand across all SKUs of selected products
+            Aggregate SKUs by product
           </span>
         )}
         {forecastLevel === 'sku' && (
@@ -3728,7 +3561,7 @@ const handleDataLoad = async (csvData) => {
 
 
 // Main Component
-// Fixed Main Component with proper prediction period flow
+// Fixed Main Component with proper prediction period flow and auto-load from saved state
 function InitialStockDistribution() {
   // View State Management
   const [predictionPeriod, setPredictionPeriod] = useState(null);
@@ -3758,6 +3591,170 @@ function InitialStockDistribution() {
   const [isGeneratingProductForecast, setIsGeneratingProductForecast] = useState(false);
   
   const [optimizationHistory, setOptimizationHistory] = useState([]);
+  
+  // NEW: Auto-restore state
+  const [isCheckingModel, setIsCheckingModel] = useState(true);
+  const [savedModelAvailable, setSavedModelAvailable] = useState(false);
+  const [needsPredictionData, setNeedsPredictionData] = useState(false);
+  const [predictionUploadFile, setPredictionUploadFile] = useState(null);
+  const [isUploadingPredictionData, setIsUploadingPredictionData] = useState(false);
+
+  // NEW: Check for pre-trained model on component mount
+  useEffect(() => {
+    const checkAndRestoreModel = async () => {
+      try {
+        setIsCheckingModel(true);
+        console.log('🔍 Checking for pre-trained model...');
+        
+        // Quick check if model is available
+        const quickCheckResponse = await fetch('http://localhost:5000/api/quick-check');
+        if (!quickCheckResponse.ok) {
+          console.log('⚠️ Quick check failed, backend may not be running');
+          setIsCheckingModel(false);
+          return;
+        }
+        
+        const quickCheck = await quickCheckResponse.json();
+        console.log('📊 Quick check result:', quickCheck);
+        
+        if (quickCheck.model_ready) {
+          // Model is ready (either in memory or needs restore)
+          if (quickCheck.needs_restore) {
+            console.log('🔄 Restoring saved model...');
+            const restoreResponse = await fetch('http://localhost:5000/api/restore-model', {
+              method: 'POST'
+            });
+            
+            if (restoreResponse.ok) {
+              const restoreResult = await restoreResponse.json();
+              console.log('✅ Model restored:', restoreResult);
+            }
+          }
+          
+          // Get full model state
+          const stateResponse = await fetch('http://localhost:5000/api/model-state');
+          if (stateResponse.ok) {
+            const modelState = await stateResponse.json();
+            console.log('📊 Full model state:', modelState);
+            
+            // Update local state based on model state
+            if (modelState.status === 'READY' || modelState.in_memory?.model_trained) {
+              setModelStatus('READY');
+              setIsDataLoaded(true);
+              setCurrentView('analytics');
+              setCurrentStage('ready');
+              setSavedModelAvailable(true);
+              
+              // Set brand config
+              if (modelState.brand_config) {
+                setBrandConfig(modelState.brand_config);
+              }
+              
+              // Set prediction period if available
+              if (modelState.prediction_period) {
+                setPredictionPeriod({
+                  start_date: modelState.prediction_period.start_date,
+                  end_date: modelState.prediction_period.end_date,
+                  type: modelState.prediction_period.prediction_type,
+                  total_days: modelState.prediction_period.total_days
+                });
+              }
+              
+              // Load products if prediction data is available
+              if (modelState.prediction_data_info || modelState.in_memory?.prediction_data_loaded) {
+                try {
+                  const productsResponse = await fetch('http://localhost:5000/api/products');
+                  if (productsResponse.ok) {
+                    const productsData = await productsResponse.json();
+                    setProducts(productsData.products || []);
+                    setSalesData(productsData.products || []);
+                    setNeedsPredictionData(false);
+                    console.log('✅ Products loaded:', productsData.products?.length || 0);
+                  } else {
+                    // Products endpoint failed - need to upload prediction data
+                    setNeedsPredictionData(true);
+                    console.log('⚠️ No prediction data available - upload required');
+                  }
+                } catch (err) {
+                  console.warn('Could not load products:', err);
+                  setNeedsPredictionData(true);
+                }
+              } else {
+                // No prediction data info - need to upload
+                setNeedsPredictionData(true);
+                console.log('⚠️ No prediction data info found - upload required');
+              }
+              
+              console.log('✅ Pre-trained model loaded successfully!');
+            } else if (modelState.status === 'SAVED_MODEL_AVAILABLE') {
+              setSavedModelAvailable(true);
+              console.log('📦 Saved model available but needs prediction data');
+            }
+          }
+        } else {
+          console.log('📭 No pre-trained model available');
+        }
+        
+      } catch (err) {
+        console.warn('⚠️ Could not check for pre-trained model:', err);
+        // Don't show error - just continue with manual upload flow
+      } finally {
+        setIsCheckingModel(false);
+      }
+    };
+    
+    checkAndRestoreModel();
+  }, []);
+
+  // Handler to upload prediction data when model is ready but data is missing
+  const handleUploadPredictionData = async () => {
+    if (!predictionUploadFile) {
+      setError('Please select a prediction products file');
+      return;
+    }
+
+    try {
+      setIsUploadingPredictionData(true);
+      setError(null);
+      
+      console.log('📤 Uploading prediction data...');
+      
+      const formData = new FormData();
+      formData.append('products_file', predictionUploadFile);
+      
+      const response = await fetch('http://localhost:5000/api/load-prediction-data', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to load prediction data: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Prediction data loaded:', result);
+      
+      // Now load the products
+      const productsResponse = await fetch('http://localhost:5000/api/products');
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json();
+        setProducts(productsData.products || []);
+        setSalesData(productsData.products || []);
+        console.log('✅ Products loaded:', productsData.products?.length || 0);
+      }
+      
+      setNeedsPredictionData(false);
+      setPredictionUploadFile(null);
+      setCurrentView('analytics');
+      
+    } catch (err) {
+      console.error('❌ Failed to upload prediction data:', err);
+      setError(err.message);
+    } finally {
+      setIsUploadingPredictionData(false);
+    }
+  };
 
   // FIXED: Improved handlePeriodSet with better error handling
   const handlePeriodSet = async (periodInfo, apiResponse) => {
@@ -3915,9 +3912,8 @@ function InitialStockDistribution() {
           
           // 🚀 FIXED: Use seasonal predictions if period is set
           const result = predictionPeriod 
-          debugger
-           await apiService.generateSeasonalPredictions(Array.isArray(codes) ? codes : [codes])
-          // : await apiService.generatePredictions(Array.isArray(codes) ? codes : [codes]);
+            ? await apiService.generateSeasonalPredictions(Array.isArray(codes) ? codes : [codes])
+            : await apiService.generatePredictions(Array.isArray(codes) ? codes : [codes]);
           
           console.log(`🎯 Using ${predictionPeriod ? 'SEASONAL' : 'STANDARD'} predictions`);
           
@@ -4144,8 +4140,71 @@ function InitialStockDistribution() {
       case 'analytics':
         return (
           <div className="flex-1 overflow-y-auto p-6">
+            {/* Show prediction data upload when model is ready but data is missing */}
+            {needsPredictionData && modelStatus === 'READY' && (
+              <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-3 bg-amber-100 rounded-lg">
+                    <Upload className="w-8 h-8 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                      Prediction Data Required
+                    </h3>
+                    <p className="text-amber-700 mb-4">
+                      Your AI model is trained and ready! Upload the new products data (CSV) to generate demand forecasts.
+                    </p>
+                    
+                    <div className="flex items-center space-x-4">
+                      <label className="flex-1">
+                        <input
+                          type="file"
+                          accept=".csv"
+                          onChange={(e) => setPredictionUploadFile(e.target.files[0])}
+                          className="hidden"
+                        />
+                        <div className={`cursor-pointer border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                          predictionUploadFile 
+                            ? 'border-green-400 bg-green-50' 
+                            : 'border-amber-300 hover:border-amber-400 hover:bg-amber-100'
+                        }`}>
+                          {predictionUploadFile ? (
+                            <span className="text-green-700 font-medium">
+                              ✓ {predictionUploadFile.name}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600">
+                              Click to select products CSV file
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                      
+                      <button
+                        onClick={handleUploadPredictionData}
+                        disabled={!predictionUploadFile || isUploadingPredictionData}
+                        className="px-6 py-3 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center"
+                      >
+                        {isUploadingPredictionData ? (
+                          <>
+                            <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-5 h-5 mr-2" />
+                            Load Products
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Show prediction period selector in analytics view if model is ready */}
-            {modelStatus === 'READY' && (
+            {modelStatus === 'READY' && !needsPredictionData && (
               <div className="mb-6">
                 <PredictionPeriodSelector
                   isModelTrained={true}
@@ -4223,9 +4282,58 @@ function InitialStockDistribution() {
     }
   };
 
+  // Show loading screen while checking for pre-trained model
+  if (isCheckingModel) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Checking for trained model...</h3>
+          <p className="text-sm text-gray-600">Looking for saved model state</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Model Restored Banner */}
+        {savedModelAvailable && modelStatus === 'READY' && currentView !== 'upload' && (
+          <div className="bg-green-50 border-b border-green-200 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center text-green-800">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              <span className="text-sm font-medium">Pre-trained model loaded successfully!</span>
+              <span className="text-sm text-green-600 ml-2">
+                You can generate predictions without retraining.
+              </span>
+            </div>
+            <button 
+              onClick={() => setSavedModelAvailable(false)}
+              className="text-green-600 hover:text-green-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* No Model Warning - Suggest going to Model Training */}
+        {!savedModelAvailable && modelStatus === 'NOT_READY' && currentView === 'upload' && (
+          <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-blue-800">
+                <AlertCircle className="w-5 h-5 mr-2" />
+                <div>
+                  <span className="text-sm font-medium">No trained model found.</span>
+                  <span className="text-sm text-blue-600 ml-2">
+                    For a better experience, train your model once in the <strong>Model Training</strong> screen.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <header className="bg-white shadow-sm z-10">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
