@@ -44,3 +44,7 @@ trend-tactix-backend/__pycache__/
 
 # OS
 Thumbs.db
+
+# Runtime user database - contains account emails, password hashes and
+# session tokens. Regenerated with a default admin on first run.
+trend-tactix-backend/data/users.db

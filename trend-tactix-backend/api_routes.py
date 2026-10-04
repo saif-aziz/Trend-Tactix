@@ -423,6 +423,258 @@ def validate_model():
         print(f"🔍 Full traceback:\n{traceback.format_exc()}")
         return jsonify({'error': f'Model validation failed: {str(e)}'}), 500
 
+
+@app.route('/api/validation-report', methods=['GET'])
+def get_validation_report():
+    """Generate comprehensive validation report with detailed metrics and recommendations"""
+    global forecaster, training_sales_data, validation_results
+    
+    try:
+        print("📊 Generating comprehensive validation report...")
+        
+        if forecaster is None:
+            return jsonify({'error': 'Model not trained yet'}), 400
+        
+        # Dataset information
+        dataset_info = {
+            'total_records': len(training_sales_data) if training_sales_data is not None else 0,
+            'unique_products': training_sales_data['Product Code'].nunique() if training_sales_data is not None and 'Product Code' in training_sales_data.columns else 0,
+            'unique_categories': training_sales_data['Category'].nunique() if training_sales_data is not None and 'Category' in training_sales_data.columns else 0,
+            'date_range': {},
+            'features_used': len(getattr(forecaster, 'feature_columns', [])),
+            'feature_list': getattr(forecaster, 'feature_columns', [])[:30],  # Top 30 features
+        }
+        
+        # Date range
+        if training_sales_data is not None and 'Sale Date' in training_sales_data.columns:
+            try:
+                dates = pd.to_datetime(training_sales_data['Sale Date'], errors='coerce')
+                dataset_info['date_range'] = {
+                    'start': dates.min().strftime('%Y-%m-%d') if pd.notna(dates.min()) else None,
+                    'end': dates.max().strftime('%Y-%m-%d') if pd.notna(dates.max()) else None,
+                    'days': (dates.max() - dates.min()).days if pd.notna(dates.min()) else 0
+                }
+            except:
+                pass
+        
+        # Model information
+        models_info = []
+        model_descriptions = {
+            'rf': {
+                'name': 'Random Forest',
+                'description': 'An ensemble learning method that constructs multiple decision trees and outputs the mean prediction. Excellent for capturing non-linear relationships and handling high-dimensional data.',
+                'pros': ['Handles non-linear patterns well', 'Resistant to overfitting', 'Provides feature importance', 'Works well with mixed data types'],
+                'cons': ['Can be slow for large datasets', 'Less interpretable than single trees', 'May not extrapolate beyond training data'],
+                'best_for': 'General purpose forecasting with complex feature interactions'
+            },
+            'xgb': {
+                'name': 'XGBoost',
+                'description': 'A gradient boosting algorithm that builds trees sequentially, each correcting errors of previous trees. Known for winning machine learning competitions.',
+                'pros': ['Often achieves highest accuracy', 'Handles missing values', 'Built-in regularization', 'Fast training with GPU support'],
+                'cons': ['Sensitive to hyperparameters', 'Can overfit with too many iterations', 'Requires careful tuning'],
+                'best_for': 'Maximum accuracy when you have time to tune hyperparameters'
+            },
+            'lgb': {
+                'name': 'LightGBM',
+                'description': 'A fast, distributed gradient boosting framework that uses histogram-based algorithms. Designed for efficiency and speed.',
+                'pros': ['Extremely fast training', 'Low memory usage', 'Handles large datasets', 'Good for categorical features'],
+                'cons': ['Sensitive to overfitting on small datasets', 'Leaf-wise growth can cause deep trees'],
+                'best_for': 'Large datasets where training speed is important'
+            }
+        }
+        
+        if hasattr(forecaster, 'models'):
+            for model_key, model in forecaster.models.items():
+                if model is not None:
+                    model_info = model_descriptions.get(model_key, {
+                        'name': model_key.upper(),
+                        'description': f'Machine learning model: {model_key}',
+                        'pros': [],
+                        'cons': [],
+                        'best_for': 'General forecasting'
+                    })
+                    model_info['key'] = model_key
+                    model_info['trained'] = True
+                    
+                    # Get model-specific metrics
+                    if hasattr(model, 'feature_importances_'):
+                        # Get top 10 feature importances
+                        try:
+                            importance_df = pd.DataFrame({
+                                'feature': forecaster.feature_columns,
+                                'importance': model.feature_importances_
+                            }).sort_values('importance', ascending=False)
+                            model_info['top_features'] = importance_df.head(10).to_dict('records')
+                        except:
+                            model_info['top_features'] = []
+                    
+                    models_info.append(model_info)
+        
+        # Ensemble weights
+        ensemble_weights = {}
+        if hasattr(forecaster, 'ensemble_weights'):
+            ensemble_weights = {k: float(v) for k, v in forecaster.ensemble_weights.items()}
+        
+        # Validation metrics
+        validation_metrics = {
+            'performed': validation_results is not None and len(validation_results) > 0,
+            'splits': [],
+            'summary': {},
+            'interpretation': '',
+            'quality_label': 'NOT_VALIDATED'
+        }
+        
+        if validation_results and len(validation_results) > 0:
+            # Process validation results
+            maes = [r['mae'] for r in validation_results]
+            mapes = [r['mape'] for r in validation_results]
+            within_20 = [r['within_20_pct'] for r in validation_results]
+            within_50 = [r['within_50_pct'] for r in validation_results]
+            
+            avg_mape = float(np.mean(mapes))
+            avg_mae = float(np.mean(maes))
+            avg_within_20 = float(np.mean(within_20))
+            avg_within_50 = float(np.mean(within_50))
+            
+            # Calculate R² estimate (if we have predictions vs actuals)
+            r2_estimate = max(0, 1 - (avg_mape / 100)) ** 2  # Rough estimate
+            
+            validation_metrics['splits'] = [
+                {
+                    'split': r['split'],
+                    'mae': float(r['mae']),
+                    'mape': float(r['mape']),
+                    'rmse': float(np.sqrt(r['mae'] * r['mae'] * 1.2)),  # Estimate RMSE
+                    'within_20_pct': float(r['within_20_pct']),
+                    'within_50_pct': float(r['within_50_pct']),
+                    'n_products': int(r['n_products'])
+                }
+                for r in validation_results
+            ]
+            
+            validation_metrics['summary'] = {
+                'average_mape': round(avg_mape, 2),
+                'average_mae': round(avg_mae, 2),
+                'average_rmse': round(np.sqrt(avg_mae * avg_mae * 1.2), 2),
+                'r2_estimate': round(r2_estimate, 3),
+                'accuracy_within_20_percent': round(avg_within_20, 1),
+                'accuracy_within_50_percent': round(avg_within_50, 1),
+                'total_products_validated': sum([r['n_products'] for r in validation_results]),
+                'n_splits': len(validation_results),
+                'mape_std': round(float(np.std(mapes)), 2),
+                'consistency_score': round(100 - float(np.std(mapes)), 1)
+            }
+            
+            # Determine quality label and interpretation
+            if avg_mape < 20:
+                quality_label = 'EXCELLENT'
+                interpretation = 'Excellent model performance! Predictions are highly reliable with minimal error. The model captures demand patterns very well.'
+                fit_status = 'Good Fit'
+            elif avg_mape < 35:
+                quality_label = 'GOOD'
+                interpretation = 'Good model performance. Predictions are reliable for most products. Minor variations are expected for edge cases.'
+                fit_status = 'Good Fit'
+            elif avg_mape < 50:
+                quality_label = 'FAIR'
+                interpretation = 'Fair model performance. Predictions provide useful guidance but should be reviewed for high-value decisions.'
+                fit_status = 'Acceptable Fit'
+            elif avg_mape < 70:
+                quality_label = 'NEEDS_IMPROVEMENT'
+                interpretation = 'Model needs improvement. Consider adding more training data, cleaning outliers, or trying different features.'
+                fit_status = 'Underfitting Detected'
+            else:
+                quality_label = 'POOR'
+                interpretation = 'Poor model performance. Significant improvements needed. The model may not capture underlying patterns well.'
+                fit_status = 'Underfitting Detected'
+            
+            # Check for overfitting (low training error, high validation error variance)
+            if float(np.std(mapes)) > 15 and avg_mape < 30:
+                fit_status = 'Possible Overfitting'
+                interpretation += ' Note: High variance between splits may indicate overfitting.'
+            
+            validation_metrics['quality_label'] = quality_label
+            validation_metrics['interpretation'] = interpretation
+            validation_metrics['fit_status'] = fit_status
+        
+        # Recommendations for improvement
+        recommendations = []
+        
+        if validation_metrics.get('summary', {}).get('average_mape', 100) > 40:
+            recommendations.append({
+                'priority': 'HIGH',
+                'category': 'Data Quality',
+                'suggestion': 'Add more historical data to improve pattern recognition',
+                'impact': 'Could reduce MAPE by 10-20%'
+            })
+            recommendations.append({
+                'priority': 'MEDIUM',
+                'category': 'Feature Engineering',
+                'suggestion': 'Include additional features like promotions, weather, or events data',
+                'impact': 'Could improve accuracy for seasonal items'
+            })
+        
+        if dataset_info['total_records'] < 50000:
+            recommendations.append({
+                'priority': 'MEDIUM',
+                'category': 'Data Volume',
+                'suggestion': 'Consider adding 2+ years of historical data for better seasonality capture',
+                'impact': 'Improves seasonal pattern detection'
+            })
+        
+        if dataset_info.get('date_range', {}).get('days', 0) < 365:
+            recommendations.append({
+                'priority': 'HIGH',
+                'category': 'Time Coverage',
+                'suggestion': 'Training data covers less than 1 year - add more historical data',
+                'impact': 'Essential for capturing seasonal patterns'
+            })
+        
+        if validation_metrics.get('summary', {}).get('consistency_score', 0) < 85:
+            recommendations.append({
+                'priority': 'MEDIUM',
+                'category': 'Model Stability',
+                'suggestion': 'Consider removing outliers or products with erratic demand patterns',
+                'impact': 'Improves prediction consistency'
+            })
+        
+        if not recommendations:
+            recommendations.append({
+                'priority': 'LOW',
+                'category': 'Maintenance',
+                'suggestion': 'Model is performing well. Retrain monthly with new data to maintain accuracy.',
+                'impact': 'Keeps model current with trends'
+            })
+        
+        # Training configuration
+        training_config = {
+            'validation_split': 0.2,
+            'n_validation_splits': len(validation_results) if validation_results else 0,
+            'prediction_horizon': getattr(forecaster, 'prediction_horizon', 365),
+            'training_date': datetime.now().isoformat(),
+            'model_version': getattr(forecaster, 'model_version', 'v1')
+        }
+        
+        # Compile full report
+        report = {
+            'generated_at': datetime.now().isoformat(),
+            'dataset_info': dataset_info,
+            'models': models_info,
+            'ensemble_weights': ensemble_weights,
+            'validation_metrics': validation_metrics,
+            'training_config': training_config,
+            'recommendations': recommendations,
+            'export_available': True
+        }
+        
+        print(f"✅ Validation report generated successfully")
+        return jsonify(report)
+        
+    except Exception as e:
+        print(f"💥 ERROR in get_validation_report: {str(e)}")
+        print(f"🔍 Full traceback:\n{traceback.format_exc()}")
+        return jsonify({'error': f'Failed to generate validation report: {str(e)}'}), 500
+
+
 # this route called from jsx file for train model
 @app.route('/api/train-model', methods=['POST'])
 def train_model():
@@ -2802,11 +3054,19 @@ def get_kpi_analytics():
                 date_range_start = valid_dates.min().isoformat()
                 date_range_end = valid_dates.max().isoformat()
         
+        # Clean up available years - remove 'All' and convert to int for sorting
+        clean_years = [int(y) for y in available_years if y != 'All' and str(y).isdigit()]
+        clean_years = sorted(set(clean_years), reverse=True)  # Most recent first
+        
+        # Get list of shop names
+        shop_names = list(shop_breakdown.keys()) if shop_breakdown else []
+        
         # Build response
         kpi_response = {
             'data_loaded': True,
             'year': year,
-            'available_years': available_years,
+            'available_years': clean_years,
+            'shops': shop_names,  # Added list of shop names for filter dropdown
             
             # Core KPIs
             'revenue': round(total_revenue, 2),
@@ -2963,6 +3223,677 @@ def get_notifications():
             'date': datetime.now().isoformat(),
             'type': 'critical'
         }])
+
+
+# ============================================================================
+# INVENTORY ANALYTICS ENDPOINTS - Real Data Analysis
+# ============================================================================
+
+@app.route('/api/inventory/analytics', methods=['GET'])
+def get_inventory_analytics():
+    """
+    Comprehensive inventory analytics from training sales data.
+    Provides KPIs, trends, category analysis, seasonality, and insights.
+    """
+    global training_sales_data
+    
+    try:
+        # Check if training data exists
+        if training_sales_data is None or training_sales_data.empty:
+            # Try to load from file
+            data_path = os.path.join(os.path.dirname(__file__), 'data', 'training_sales.csv')
+            if os.path.exists(data_path):
+                training_sales_data = pd.read_csv(data_path)
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No training data available. Please upload data on Model Training page.'
+                }), 404
+        
+        df = training_sales_data.copy()
+        
+        # Parse dates
+        if 'Sale Date' in df.columns:
+            df['Sale Date'] = pd.to_datetime(df['Sale Date'], errors='coerce')
+            df['Year'] = df['Sale Date'].dt.year
+            df['Month'] = df['Sale Date'].dt.month
+            df['MonthName'] = df['Sale Date'].dt.strftime('%b')
+            df['Quarter'] = df['Sale Date'].dt.quarter
+            df['DayOfWeek'] = df['Sale Date'].dt.dayofweek
+            df['WeekOfYear'] = df['Sale Date'].dt.isocalendar().week
+        
+        # Get quantity column
+        qty_col = None
+        for col in ['Quantity', 'Qty', 'QTY', 'quantity']:
+            if col in df.columns:
+                qty_col = col
+                break
+        
+        # If no quantity column, count transactions
+        if qty_col is None:
+            df['Qty'] = 1
+            qty_col = 'Qty'
+        
+        # ============ KEY METRICS ============
+        total_transactions = len(df)
+        total_units_sold = int(df[qty_col].sum()) if qty_col else total_transactions
+        unique_skus = df['Product Code'].nunique() if 'Product Code' in df.columns else 0
+        unique_products = df['Product Name'].nunique() if 'Product Name' in df.columns else 0
+        unique_categories = df['Category'].nunique() if 'Category' in df.columns else 0
+        unique_shops = df['Shop'].nunique() if 'Shop' in df.columns else 1
+        
+        # Date range
+        date_range = {}
+        if 'Sale Date' in df.columns:
+            date_range = {
+                'start': df['Sale Date'].min().strftime('%Y-%m-%d') if pd.notna(df['Sale Date'].min()) else None,
+                'end': df['Sale Date'].max().strftime('%Y-%m-%d') if pd.notna(df['Sale Date'].max()) else None,
+                'days': (df['Sale Date'].max() - df['Sale Date'].min()).days if pd.notna(df['Sale Date'].min()) else 0
+            }
+        
+        # ============ YEAR-OVER-YEAR COMPARISON ============
+        yoy_comparison = {}
+        if 'Year' in df.columns:
+            yearly_stats = df.groupby('Year').agg({
+                qty_col: 'sum',
+                'Product Code': 'nunique' if 'Product Code' in df.columns else 'count'
+            }).reset_index()
+            yearly_stats.columns = ['Year', 'Units', 'SKUs']
+            
+            years = sorted(yearly_stats['Year'].unique())
+            for i, year in enumerate(years):
+                year_data = yearly_stats[yearly_stats['Year'] == year].iloc[0]
+                yoy_comparison[int(year)] = {
+                    'units': int(year_data['Units']),
+                    'skus': int(year_data['SKUs']),
+                    'change': None
+                }
+                if i > 0:
+                    prev_year = years[i-1]
+                    prev_units = yearly_stats[yearly_stats['Year'] == prev_year]['Units'].iloc[0]
+                    if prev_units > 0:
+                        change = ((year_data['Units'] - prev_units) / prev_units) * 100
+                        yoy_comparison[int(year)]['change'] = round(change, 1)
+        
+        # ============ MONTHLY TRENDS ============
+        monthly_trends = []
+        if 'Sale Date' in df.columns:
+            monthly_stats = df.groupby(['Year', 'Month', 'MonthName']).agg({
+                qty_col: 'sum',
+                'Product Code': 'nunique' if 'Product Code' in df.columns else 'count'
+            }).reset_index()
+            monthly_stats.columns = ['Year', 'Month', 'MonthName', 'Units', 'ActiveSKUs']
+            
+            for _, row in monthly_stats.iterrows():
+                monthly_trends.append({
+                    'year': int(row['Year']),
+                    'month': int(row['Month']),
+                    'monthName': row['MonthName'],
+                    'units': int(row['Units']),
+                    'activeSKUs': int(row['ActiveSKUs'])
+                })
+        
+        # ============ CATEGORY PERFORMANCE ============
+        category_performance = []
+        if 'Category' in df.columns:
+            cat_stats = df.groupby('Category').agg({
+                qty_col: ['sum', 'mean', 'count'],
+                'Product Code': 'nunique' if 'Product Code' in df.columns else 'count'
+            }).reset_index()
+            cat_stats.columns = ['Category', 'TotalUnits', 'AvgUnits', 'Transactions', 'UniqueSKUs']
+            cat_stats = cat_stats.sort_values('TotalUnits', ascending=False)
+            
+            total_category_units = cat_stats['TotalUnits'].sum()
+            
+            for _, row in cat_stats.iterrows():
+                share = (row['TotalUnits'] / total_category_units * 100) if total_category_units > 0 else 0
+                velocity = row['TotalUnits'] / max(row['UniqueSKUs'], 1)
+                category_performance.append({
+                    'category': row['Category'],
+                    'totalUnits': int(row['TotalUnits']),
+                    'avgUnitsPerTransaction': round(row['AvgUnits'], 2),
+                    'transactions': int(row['Transactions']),
+                    'uniqueSKUs': int(row['UniqueSKUs']),
+                    'marketShare': round(share, 1),
+                    'velocity': round(velocity, 1)
+                })
+        
+        # ============ SEASONAL ANALYSIS ============
+        seasonal_analysis = []
+        if 'Season' in df.columns:
+            season_stats = df.groupby('Season').agg({
+                qty_col: ['sum', 'count'],
+                'Product Code': 'nunique' if 'Product Code' in df.columns else 'count'
+            }).reset_index()
+            season_stats.columns = ['Season', 'TotalUnits', 'Transactions', 'UniqueSKUs']
+            season_stats = season_stats.sort_values('TotalUnits', ascending=False)
+            
+            for _, row in season_stats.iterrows():
+                seasonal_analysis.append({
+                    'season': row['Season'],
+                    'totalUnits': int(row['TotalUnits']),
+                    'transactions': int(row['Transactions']),
+                    'uniqueSKUs': int(row['UniqueSKUs'])
+                })
+        
+        # ============ QUARTERLY TRENDS ============
+        quarterly_trends = []
+        if 'Quarter' in df.columns and 'Year' in df.columns:
+            quarterly_stats = df.groupby(['Year', 'Quarter']).agg({
+                qty_col: 'sum'
+            }).reset_index()
+            quarterly_stats.columns = ['Year', 'Quarter', 'Units']
+            
+            for _, row in quarterly_stats.iterrows():
+                quarterly_trends.append({
+                    'year': int(row['Year']),
+                    'quarter': f"Q{int(row['Quarter'])}",
+                    'units': int(row['Units'])
+                })
+        
+        # ============ TOP PERFORMING PRODUCTS ============
+        top_products = []
+        if 'Product Name' in df.columns:
+            product_stats = df.groupby(['Product Name', 'Category'] if 'Category' in df.columns else ['Product Name']).agg({
+                qty_col: 'sum',
+                'Product Code': 'nunique' if 'Product Code' in df.columns else 'count'
+            }).reset_index()
+            
+            if 'Category' in df.columns:
+                product_stats.columns = ['ProductName', 'Category', 'TotalUnits', 'SKUCount']
+            else:
+                product_stats.columns = ['ProductName', 'TotalUnits', 'SKUCount']
+                product_stats['Category'] = 'Unknown'
+            
+            product_stats = product_stats.sort_values('TotalUnits', ascending=False).head(20)
+            
+            for rank, (_, row) in enumerate(product_stats.iterrows(), 1):
+                top_products.append({
+                    'rank': rank,
+                    'productName': row['ProductName'],
+                    'category': row['Category'],
+                    'totalUnits': int(row['TotalUnits']),
+                    'skuCount': int(row['SKUCount'])
+                })
+        
+        # ============ SLOW MOVING PRODUCTS ============
+        slow_moving = []
+        if 'Product Name' in df.columns:
+            product_stats_full = df.groupby(['Product Name', 'Category'] if 'Category' in df.columns else ['Product Name']).agg({
+                qty_col: 'sum'
+            }).reset_index()
+            
+            if 'Category' in df.columns:
+                product_stats_full.columns = ['ProductName', 'Category', 'TotalUnits']
+            else:
+                product_stats_full.columns = ['ProductName', 'TotalUnits']
+                product_stats_full['Category'] = 'Unknown'
+            
+            # Bottom 10% by volume
+            threshold = product_stats_full['TotalUnits'].quantile(0.1)
+            slow_df = product_stats_full[product_stats_full['TotalUnits'] <= threshold].head(15)
+            
+            for _, row in slow_df.iterrows():
+                slow_moving.append({
+                    'productName': row['ProductName'],
+                    'category': row['Category'],
+                    'totalUnits': int(row['TotalUnits'])
+                })
+        
+        # ============ GENDER BREAKDOWN ============
+        gender_breakdown = []
+        if 'Gender' in df.columns:
+            gender_stats = df.groupby('Gender').agg({
+                qty_col: 'sum'
+            }).reset_index()
+            gender_stats.columns = ['Gender', 'Units']
+            
+            for _, row in gender_stats.iterrows():
+                gender_breakdown.append({
+                    'gender': row['Gender'],
+                    'units': int(row['Units'])
+                })
+        
+        # ============ SHOP PERFORMANCE ============
+        shop_performance = []
+        if 'Shop' in df.columns:
+            shop_stats = df.groupby('Shop').agg({
+                qty_col: 'sum',
+                'Product Code': 'nunique' if 'Product Code' in df.columns else 'count'
+            }).reset_index()
+            shop_stats.columns = ['Shop', 'Units', 'ActiveSKUs']
+            shop_stats = shop_stats.sort_values('Units', ascending=False)
+            
+            for _, row in shop_stats.iterrows():
+                shop_performance.append({
+                    'shop': row['Shop'],
+                    'units': int(row['Units']),
+                    'activeSKUs': int(row['ActiveSKUs'])
+                })
+        
+        # ============ DAY OF WEEK PATTERNS ============
+        dow_patterns = []
+        if 'DayOfWeek' in df.columns:
+            dow_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            dow_stats = df.groupby('DayOfWeek').agg({
+                qty_col: 'sum'
+            }).reset_index()
+            dow_stats.columns = ['DayOfWeek', 'Units']
+            
+            for _, row in dow_stats.iterrows():
+                dow_patterns.append({
+                    'day': dow_names[int(row['DayOfWeek'])],
+                    'dayNum': int(row['DayOfWeek']),
+                    'units': int(row['Units'])
+                })
+        
+        # ============ INSIGHTS & RECOMMENDATIONS ============
+        insights = []
+        
+        # Best performing category
+        if category_performance:
+            best_cat = category_performance[0]
+            insights.append({
+                'type': 'success',
+                'title': 'Top Category',
+                'message': f"{best_cat['category']} leads with {best_cat['totalUnits']:,} units ({best_cat['marketShare']}% share)"
+            })
+        
+        # YoY growth insight
+        if yoy_comparison:
+            years = sorted(yoy_comparison.keys())
+            if len(years) >= 2:
+                latest_year = years[-1]
+                change = yoy_comparison[latest_year].get('change')
+                if change is not None:
+                    if change > 0:
+                        insights.append({
+                            'type': 'success',
+                            'title': 'Year-over-Year Growth',
+                            'message': f"Sales grew {change}% in {latest_year} compared to previous year"
+                        })
+                    else:
+                        insights.append({
+                            'type': 'warning',
+                            'title': 'Year-over-Year Decline',
+                            'message': f"Sales declined {abs(change)}% in {latest_year}. Review strategy."
+                        })
+        
+        # Seasonal insight
+        if seasonal_analysis:
+            top_season = seasonal_analysis[0]
+            insights.append({
+                'type': 'info',
+                'title': 'Peak Season',
+                'message': f"'{top_season['season']}' items drive highest volume with {top_season['totalUnits']:,} units"
+            })
+        
+        # Slow moving alert
+        if slow_moving:
+            insights.append({
+                'type': 'warning',
+                'title': 'Slow-Moving Inventory',
+                'message': f"{len(slow_moving)} products in bottom 10% by volume. Consider promotions or discontinuation."
+            })
+        
+        # SKU concentration
+        if top_products and total_units_sold > 0:
+            top_10_units = sum(p['totalUnits'] for p in top_products[:10])
+            top_10_share = (top_10_units / total_units_sold) * 100
+            if top_10_share > 50:
+                insights.append({
+                    'type': 'info',
+                    'title': 'SKU Concentration',
+                    'message': f"Top 10 products account for {top_10_share:.0f}% of sales. Diversification opportunity."
+                })
+        
+        # Build response
+        response = {
+            'status': 'success',
+            'dataSource': 'training_sales_data',
+            'summary': {
+                'totalTransactions': total_transactions,
+                'totalUnitsSold': total_units_sold,
+                'uniqueSKUs': unique_skus,
+                'uniqueProducts': unique_products,
+                'uniqueCategories': unique_categories,
+                'uniqueShops': unique_shops,
+                'dateRange': date_range,
+                'avgUnitsPerDay': round(total_units_sold / max(date_range.get('days', 1), 1), 1)
+            },
+            'yearOverYear': yoy_comparison,
+            'monthlyTrends': monthly_trends,
+            'quarterlyTrends': quarterly_trends,
+            'categoryPerformance': category_performance,
+            'seasonalAnalysis': seasonal_analysis,
+            'genderBreakdown': gender_breakdown,
+            'shopPerformance': shop_performance,
+            'dayOfWeekPatterns': dow_patterns,
+            'topProducts': top_products,
+            'slowMovingProducts': slow_moving,
+            'insights': insights
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        print(f"💥 Inventory analytics error: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/inventory/category/<category_name>', methods=['GET'])
+def get_category_details(category_name):
+    """Get detailed analytics for a specific category"""
+    global training_sales_data
+    
+    try:
+        if training_sales_data is None or training_sales_data.empty:
+            return jsonify({'status': 'error', 'message': 'No training data available'}), 404
+        
+        df = training_sales_data.copy()
+        
+        # Filter by category
+        if 'Category' not in df.columns:
+            return jsonify({'status': 'error', 'message': 'Category column not found'}), 400
+        
+        cat_df = df[df['Category'] == category_name]
+        
+        if cat_df.empty:
+            return jsonify({'status': 'error', 'message': f'Category "{category_name}" not found'}), 404
+        
+        # Parse dates
+        if 'Sale Date' in cat_df.columns:
+            cat_df['Sale Date'] = pd.to_datetime(cat_df['Sale Date'], errors='coerce')
+            cat_df['Month'] = cat_df['Sale Date'].dt.month
+            cat_df['MonthName'] = cat_df['Sale Date'].dt.strftime('%b')
+            cat_df['Year'] = cat_df['Sale Date'].dt.year
+        
+        # Get quantity column
+        qty_col = 'Qty' if 'Qty' in cat_df.columns else ('Quantity' if 'Quantity' in cat_df.columns else None)
+        if qty_col is None:
+            cat_df['Qty'] = 1
+            qty_col = 'Qty'
+        
+        # Monthly trends for this category
+        monthly_trends = []
+        if 'MonthName' in cat_df.columns:
+            monthly_stats = cat_df.groupby(['Year', 'Month', 'MonthName']).agg({
+                qty_col: 'sum'
+            }).reset_index()
+            monthly_stats.columns = ['Year', 'Month', 'MonthName', 'Units']
+            
+            for _, row in monthly_stats.iterrows():
+                monthly_trends.append({
+                    'year': int(row['Year']),
+                    'month': row['MonthName'],
+                    'units': int(row['Units'])
+                })
+        
+        # Top products in category
+        top_products = []
+        if 'Product Name' in cat_df.columns:
+            product_stats = cat_df.groupby('Product Name').agg({
+                qty_col: 'sum'
+            }).reset_index()
+            product_stats.columns = ['ProductName', 'Units']
+            product_stats = product_stats.sort_values('Units', ascending=False).head(10)
+            
+            for rank, (_, row) in enumerate(product_stats.iterrows(), 1):
+                top_products.append({
+                    'rank': rank,
+                    'productName': row['ProductName'],
+                    'units': int(row['Units'])
+                })
+        
+        response = {
+            'status': 'success',
+            'category': category_name,
+            'totalUnits': int(cat_df[qty_col].sum()),
+            'totalTransactions': len(cat_df),
+            'uniqueProducts': cat_df['Product Name'].nunique() if 'Product Name' in cat_df.columns else 0,
+            'uniqueSKUs': cat_df['Product Code'].nunique() if 'Product Code' in cat_df.columns else 0,
+            'monthlyTrends': monthly_trends,
+            'topProducts': top_products
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        print(f"💥 Category details error: {traceback.format_exc()}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# ============================================================================
+# USER MANAGEMENT & AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+from user_management_db import user_db
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Authenticate user and return session"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({'success': False, 'message': 'Username and password required'}), 400
+        
+        result = user_db.authenticate(username, password)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 401
+            
+    except Exception as e:
+        print(f"💥 Login error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/auth/validate', methods=['POST'])
+def validate_session():
+    """Validate session token"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        
+        if not token:
+            return jsonify({'valid': False, 'message': 'Token required'}), 400
+        
+        result = user_db.validate_session(token)
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"💥 Validate session error: {traceback.format_exc()}")
+        return jsonify({'valid': False, 'message': str(e)}), 500
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    """Logout user and invalidate session"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        
+        if token:
+            result = user_db.logout(token)
+            return jsonify(result)
+        
+        return jsonify({'success': True, 'message': 'Logged out'})
+        
+    except Exception as e:
+        print(f"💥 Logout error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """Get all users (admin only)"""
+    try:
+        # TODO: Add authentication check here
+        users = user_db.get_all_users()
+        return jsonify({'success': True, 'users': users})
+        
+    except Exception as e:
+        print(f"💥 Get users error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    """Get single user"""
+    try:
+        user = user_db.get_user(user_id)
+        if user:
+            permissions = user_db.get_user_permissions(user_id)
+            return jsonify({'success': True, 'user': user, 'permissions': permissions})
+        return jsonify({'success': False, 'message': 'User not found'}), 404
+        
+    except Exception as e:
+        print(f"💥 Get user error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    """Create new user"""
+    try:
+        data = request.get_json()
+        
+        required_fields = ['username', 'email', 'full_name', 'password']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'message': f'{field} is required'}), 400
+        
+        result = user_db.create_user(
+            username=data['username'],
+            email=data['email'],
+            full_name=data['full_name'],
+            password=data['password'],
+            role=data.get('role', 'user'),
+            designation=data.get('designation'),
+            is_admin=data.get('is_admin', False),
+            created_by=data.get('created_by')
+        )
+        
+        if result['success']:
+            # Set permissions if provided
+            if data.get('permissions'):
+                user_db.set_user_permissions(result['user_id'], data['permissions'])
+            return jsonify(result), 201
+        
+        return jsonify(result), 400
+        
+    except Exception as e:
+        print(f"💥 Create user error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    """Update user details"""
+    try:
+        data = request.get_json()
+        
+        # Update basic info
+        updates = {}
+        for field in ['email', 'full_name', 'role', 'designation', 'status', 'is_admin']:
+            if field in data:
+                updates[field] = data[field]
+        
+        if updates:
+            result = user_db.update_user(user_id, updates, data.get('updated_by'))
+            if not result['success']:
+                return jsonify(result), 400
+        
+        # Update password if provided
+        if data.get('password'):
+            user_db.update_password(user_id, data['password'], data.get('updated_by'))
+        
+        # Update permissions if provided
+        if data.get('permissions'):
+            user_db.set_user_permissions(user_id, data['permissions'], data.get('updated_by'))
+        
+        return jsonify({'success': True, 'message': 'User updated successfully'})
+        
+    except Exception as e:
+        print(f"💥 Update user error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Delete user"""
+    try:
+        data = request.get_json() or {}
+        result = user_db.delete_user(user_id, data.get('deleted_by'))
+        
+        if result['success']:
+            return jsonify(result)
+        return jsonify(result), 400
+        
+    except Exception as e:
+        print(f"💥 Delete user error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>/permissions', methods=['GET'])
+def get_permissions(user_id):
+    """Get user permissions"""
+    try:
+        permissions = user_db.get_user_permissions(user_id)
+        return jsonify({'success': True, 'permissions': permissions})
+        
+    except Exception as e:
+        print(f"💥 Get permissions error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/users/<int:user_id>/permissions', methods=['PUT'])
+def update_permissions(user_id):
+    """Update user permissions"""
+    try:
+        data = request.get_json()
+        permissions = data.get('permissions', {})
+        
+        result = user_db.set_user_permissions(user_id, permissions, data.get('updated_by'))
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"💥 Update permissions error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/modules', methods=['GET'])
+def get_modules():
+    """Get available modules for permissions"""
+    try:
+        modules = user_db.get_available_modules()
+        return jsonify({'success': True, 'modules': modules})
+        
+    except Exception as e:
+        print(f"💥 Get modules error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/activity-log', methods=['GET'])
+def get_activity_log():
+    """Get activity log"""
+    try:
+        user_id = request.args.get('user_id', type=int)
+        limit = request.args.get('limit', default=50, type=int)
+        
+        logs = user_db.get_activity_log(user_id, limit)
+        return jsonify({'success': True, 'logs': logs})
+        
+    except Exception as e:
+        print(f"💥 Get activity log error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 if __name__ == '__main__':

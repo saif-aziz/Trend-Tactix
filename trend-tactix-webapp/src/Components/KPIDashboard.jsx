@@ -49,12 +49,16 @@ function formatNumber(number) {
   return new Intl.NumberFormat().format(number || 0);
 }
 
-export default function KPIDashboard() {
+export default function KPIDashboard({ currentUser }) {
   const [activeTab, setActiveTab] = useState('kpis');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedShop, setSelectedShop] = useState('all');
   const [selectedTimeframe, setSelectedTimeframe] = useState('monthly');
-  const [selectedYear, setSelectedYear] = useState('2025');
+  const [selectedYear, setSelectedYear] = useState('');
+  
+  // Dynamic filter options from API
+  const [availableYears, setAvailableYears] = useState([]);
+  const [availableShops, setAvailableShops] = useState([]);
   
   // State for API data
   const [kpiData, setKpiData] = useState(null);
@@ -83,9 +87,25 @@ export default function KPIDashboard() {
       
       try {
         // Try to fetch KPI data using centralized API
-        console.log(`Fetching KPIs for year: ${selectedYear}`);
-        const kpis = await api.getKPIs(selectedYear);
+        const yearToFetch = selectedYear || '';
+        console.log(`Fetching KPIs for year: ${yearToFetch || 'all'}`);
+        const kpis = await api.getKPIs(yearToFetch);
         setKpiData(kpis);
+        
+        // Set available years from API response (only years with data)
+        if (kpis.available_years && kpis.available_years.length > 0) {
+          const years = kpis.available_years.sort((a, b) => b - a); // Sort descending
+          setAvailableYears(years);
+          // Set default year to latest available if not set
+          if (!selectedYear && years.length > 0) {
+            setSelectedYear(years[0].toString());
+          }
+        }
+        
+        // Set available shops from API response
+        if (kpis.shops && kpis.shops.length > 0) {
+          setAvailableShops(kpis.shops);
+        }
         
         // Try to fetch notifications
         console.log('Fetching notifications...');
@@ -249,7 +269,7 @@ export default function KPIDashboard() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} />
       
       {/* Connection Status Indicator */}
       <div className="px-6 pt-4">
@@ -359,7 +379,10 @@ export default function KPIDashboard() {
             categories={categories}
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
-            shops={shops}
+            shops={availableShops.length > 0 
+              ? [{ id: 'all', name: 'All Shops' }, ...availableShops.map(s => ({ id: s, name: s }))]
+              : shops
+            }
             selectedShop={selectedShop}
             setSelectedShop={setSelectedShop}
             timeframes={timeframes}
@@ -376,9 +399,16 @@ export default function KPIDashboard() {
                 onChange={(e) => setSelectedYear(e.target.value)}
                 className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-                <option value="2023">2023</option>
+                {availableYears.length > 0 ? (
+                  availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                  </>
+                )}
               </select>
             </div>
           </div>

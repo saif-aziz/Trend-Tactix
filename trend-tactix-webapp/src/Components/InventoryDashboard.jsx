@@ -1,648 +1,982 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, ChevronDown, RefreshCw, Download, Calendar, Search, AlertTriangle, Package, TrendingUp, TrendingDown, Zap } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, AreaChart, Area, ComposedChart } from 'recharts';
+import { 
+  Filter, ChevronDown, ChevronUp, RefreshCw, Download, Calendar, Search, 
+  AlertTriangle, Package, TrendingUp, TrendingDown, Zap, BarChart3, 
+  PieChart as PieChartIcon, Activity, Target, ShoppingBag, Users,
+  ArrowUpRight, ArrowDownRight, Layers, Clock, Award, AlertCircle,
+  Lightbulb, CheckCircle, Info, Store
+} from 'lucide-react';
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, BarChart, Bar, AreaChart, Area, 
+  ComposedChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+} from 'recharts';
 
-// Sample data
-const shops = [
-  { id: 'all', name: 'All Shops' },
-  { id: 'shop_a', name: 'Shop A' },
-  { id: 'shop_b', name: 'Shop B' },
-  { id: 'shop_c', name: 'Shop C' },
-  { id: 'shop_d', name: 'Shop D' }
-];
+// API base URL
+const API_BASE = 'http://localhost:5000/api';
 
-const timeframes = [
-  { id: 'daily', name: 'Daily' },
-  { id: 'weekly', name: 'Weekly' },
-  { id: 'monthly', name: 'Monthly' },
-  { id: 'yearly', name: 'Yearly' }
-];
-
-const categories = [
-  { id: 'all', name: 'All Categories' },
-  { id: 'men', name: 'Men\'s Wear' },
-  { id: 'women', name: 'Women\'s Wear' },
-  { id: 'kids', name: 'Kids Wear' },
-  { id: 'accessories', name: 'Accessories' }
-];
-
-// Sample inventory metrics
-const inventoryMetrics = {
-  totalValue: {
-    value: '$2.8M',
-    change: '5.2%',
-    trend: 'up',
-    previous: '$2.66M'
-  },
-  turnoverRate: {
-    value: '4.2',
-    change: '0.8',
-    trend: 'up',
-    previous: '3.4'
-  },
-  stockouts: {
-    value: '12',
-    change: '3',
-    trend: 'down',
-    previous: '15'
-  },
-  excessStock: {
-    value: '8.5%',
-    change: '1.2%',
-    trend: 'down',
-    previous: '9.7%'
-  }
+// Color palette
+const COLORS = {
+  primary: '#6366F1',
+  secondary: '#8B5CF6',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  info: '#3B82F6',
+  purple: '#A855F7',
+  pink: '#EC4899',
+  teal: '#14B8A6',
+  orange: '#F97316'
 };
 
-// Category distribution
-const categoryDistribution = [
-  { name: 'Men\'s Wear', value: 35, stock: 1250 },
-  { name: 'Women\'s Wear', value: 40, stock: 1500 },
-  { name: 'Kids Wear', value: 15, stock: 650 },
-  { name: 'Accessories', value: 10, stock: 400 }
-];
-
-// ABC Analysis data
-const abcAnalysis = [
-  { category: 'A Items', percentage: 70, count: 45, color: '#10B981' },
-  { category: 'B Items', percentage: 20, count: 35, color: '#F59E0B' },
-  { category: 'C Items', percentage: 10, count: 120, color: '#EF4444' }
-];
-
-// Monthly data
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const inventoryTrends = months.map((month, i) => ({
-  month,
-  stockLevel: 1500 + Math.sin(i * 0.5) * 200 + Math.random() * 100,
-  inbound: 300 + Math.random() * 150,
-  outbound: 280 + Math.random() * 120,
-  optimal: 1600,
-  turnover: 3.5 + Math.sin(i * 0.3) * 0.5 + Math.random() * 0.3
-}));
-
-const agingAnalysis = [
-  { range: '0-30 days', value: 45, amount: '$890K' },
-  { range: '31-60 days', value: 25, amount: '$520K' },
-  { range: '61-90 days', value: 18, amount: '$380K' },
-  { range: '90+ days', value: 12, amount: '$210K' }
-];
-
-// Low stock items
-const lowStockItems = [
-  { name: 'Blue Denim Jacket', sku: 'BDJ-001', current: 8, reorder: 25, category: 'Men\'s Wear', status: 'critical' },
-  { name: 'Floral Summer Dress', sku: 'FSD-045', current: 12, reorder: 30, category: 'Women\'s Wear', status: 'warning' },
-  { name: 'Kids Superhero T-Shirt', sku: 'KST-023', current: 15, reorder: 40, category: 'Kids Wear', status: 'warning' },
-  { name: 'Leather Handbag', sku: 'LHB-089', current: 5, reorder: 20, category: 'Accessories', status: 'critical' },
-  { name: 'Casual Sneakers', sku: 'CS-156', current: 18, reorder: 35, category: 'Men\'s Wear', status: 'warning' }
-];
-
-// Stock movement data
-const stockMovement = [
-  { product: 'Blue Denim Jacket', inbound: 50, outbound: 72, net: -22 },
-  { product: 'Floral Summer Dress', inbound: 80, outbound: 65, net: 15 },
-  { product: 'Kids Superhero T-Shirt', inbound: 45, outbound: 58, net: -13 },
-  { product: 'Leather Handbag', inbound: 30, outbound: 42, net: -12 },
-  { product: 'Casual Sneakers', inbound: 60, outbound: 55, net: 5 }
-];
-
-const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const CHART_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#3B82F6', '#A855F7'];
 
 export default function InventoryDashboard() {
-  const [selectedShop, setSelectedShop] = useState('all');
-  const [selectedTimeframe, setSelectedTimeframe] = useState('monthly');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [dateRange, setDateRange] = useState({ start: '2025-01-01', end: '2025-05-15' });
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [expandedSections, setExpandedSections] = useState({
+    trends: true,
+    categories: true,
+    products: true,
+    insights: true
+  });
 
-  // Simulate data loading
+  // Fetch analytics data
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+    fetchAnalytics();
   }, []);
 
-  // Simulate data refresh when filters change
-  useEffect(() => {
-    if (!isLoading) {
+  const fetchAnalytics = async () => {
       setIsLoading(true);
-      const timer = setTimeout(() => {
+    setError(null);
+    
+    try {
+      const response = await fetch(`${API_BASE}/inventory/analytics`);
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setAnalyticsData(data);
+      } else {
+        setError(data.message || 'Failed to load analytics');
+      }
+    } catch (err) {
+      setError('Failed to connect to server. Please ensure backend is running.');
+      console.error('Analytics fetch error:', err);
+    } finally {
         setIsLoading(false);
-      }, 800);
-      return () => clearTimeout(timer);
     }
-  }, [selectedShop, selectedTimeframe, selectedCategory]);
-
-  const handleDataRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 800);
   };
 
+  const handleRefresh = () => {
+    fetchAnalytics();
+  };
+
+  // Export analytics data as CSV
+  const handleExport = () => {
+    if (!analyticsData) {
+      alert('No data available to export');
+      return;
+    }
+
+    const data = filteredData || analyticsData;
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filterSuffix = hasActiveFilters 
+      ? `_${selectedYear !== 'all' ? selectedYear : 'AllYears'}_${selectedCategory !== 'all' ? selectedCategory.replace(/\s+/g, '-') : 'AllCategories'}`
+      : '';
+
+    // Create CSV content
+    let csvContent = '';
+
+    // Summary Section
+    csvContent += 'SALES & INVENTORY ANALYTICS REPORT\n';
+    csvContent += `Generated: ${new Date().toLocaleString()}\n`;
+    csvContent += `Data Period: ${data.summary?.dateRange?.start || 'N/A'} to ${data.summary?.dateRange?.end || 'N/A'}\n`;
+    if (hasActiveFilters) {
+      csvContent += `Filters Applied: Year=${selectedYear}, Category=${selectedCategory}\n`;
+    }
+    csvContent += '\n';
+
+    // KPI Summary
+    csvContent += '--- KEY METRICS ---\n';
+    csvContent += `Total Transactions,${data.summary?.totalTransactions || 0}\n`;
+    csvContent += `Total Units Sold,${data.summary?.totalUnitsSold || 0}\n`;
+    csvContent += `Unique SKUs,${data.summary?.uniqueSKUs || 0}\n`;
+    csvContent += `Unique Products,${data.summary?.uniqueProducts || 0}\n`;
+    csvContent += `Unique Categories,${data.summary?.uniqueCategories || 0}\n`;
+    csvContent += `Avg Units/Day,${data.summary?.avgUnitsPerDay || 0}\n`;
+    csvContent += '\n';
+
+    // Category Performance
+    if (data.categoryPerformance && data.categoryPerformance.length > 0) {
+      csvContent += '--- CATEGORY PERFORMANCE ---\n';
+      csvContent += 'Category,Total Units,Transactions,SKUs,Market Share %,Velocity\n';
+      data.categoryPerformance.forEach(cat => {
+        csvContent += `"${cat.category}",${cat.totalUnits},${cat.transactions},${cat.uniqueSKUs},${cat.marketShare},${cat.velocity}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Monthly Trends
+    if (data.monthlyTrends && data.monthlyTrends.length > 0) {
+      csvContent += '--- MONTHLY TRENDS ---\n';
+      csvContent += 'Year,Month,Units,Active SKUs\n';
+      data.monthlyTrends.forEach(m => {
+        csvContent += `${m.year},${m.monthName},${m.units},${m.activeSKUs || 0}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Quarterly Trends
+    if (data.quarterlyTrends && data.quarterlyTrends.length > 0) {
+      csvContent += '--- QUARTERLY TRENDS ---\n';
+      csvContent += 'Year,Quarter,Units\n';
+      data.quarterlyTrends.forEach(q => {
+        csvContent += `${q.year},${q.quarter},${q.units}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Top Products
+    if (data.topProducts && data.topProducts.length > 0) {
+      csvContent += '--- TOP PERFORMING PRODUCTS ---\n';
+      csvContent += 'Rank,Product Name,Category,Total Units,SKU Count\n';
+      data.topProducts.forEach(p => {
+        csvContent += `${p.rank},"${p.productName}","${p.category}",${p.totalUnits},${p.skuCount}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Slow Moving Products
+    if (data.slowMovingProducts && data.slowMovingProducts.length > 0) {
+      csvContent += '--- SLOW MOVING PRODUCTS (Bottom 10%) ---\n';
+      csvContent += 'Product Name,Category,Total Units\n';
+      data.slowMovingProducts.forEach(p => {
+        csvContent += `"${p.productName}","${p.category}",${p.totalUnits}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Seasonal Analysis
+    if (data.seasonalAnalysis && data.seasonalAnalysis.length > 0) {
+      csvContent += '--- SEASONAL ANALYSIS ---\n';
+      csvContent += 'Season,Total Units,Transactions,SKUs\n';
+      data.seasonalAnalysis.forEach(s => {
+        csvContent += `"${s.season}",${s.totalUnits},${s.transactions},${s.uniqueSKUs}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Gender Breakdown
+    if (data.genderBreakdown && data.genderBreakdown.length > 0) {
+      csvContent += '--- GENDER BREAKDOWN ---\n';
+      csvContent += 'Gender,Units\n';
+      data.genderBreakdown.forEach(g => {
+        csvContent += `"${g.gender}",${g.units}\n`;
+      });
+      csvContent += '\n';
+    }
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `sales_inventory_analytics_${timestamp}${filterSuffix}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Get available years from data
+  const availableYears = analyticsData?.yearOverYear 
+    ? Object.keys(analyticsData.yearOverYear).sort() 
+    : [];
+
+  // Get available categories
+  const availableCategories = analyticsData?.categoryPerformance?.map(c => c.category) || [];
+
+  // ============ FILTER DATA BASED ON SELECTIONS ============
+  const getFilteredData = () => {
+    if (!analyticsData) return null;
+
+    let filteredMonthlyTrends = analyticsData.monthlyTrends || [];
+    let filteredQuarterlyTrends = analyticsData.quarterlyTrends || [];
+    let filteredCategoryPerformance = analyticsData.categoryPerformance || [];
+    let filteredTopProducts = analyticsData.topProducts || [];
+    let filteredSlowMoving = analyticsData.slowMovingProducts || [];
+    let filteredYoY = analyticsData.yearOverYear || {};
+
+    // Filter by Year
+    if (selectedYear !== 'all') {
+      const yearNum = parseInt(selectedYear);
+      filteredMonthlyTrends = filteredMonthlyTrends.filter(item => item.year === yearNum);
+      filteredQuarterlyTrends = filteredQuarterlyTrends.filter(item => item.year === yearNum);
+      filteredYoY = { [selectedYear]: filteredYoY[selectedYear] };
+    }
+
+    // Filter by Category
+    if (selectedCategory !== 'all') {
+      filteredCategoryPerformance = filteredCategoryPerformance.filter(
+        cat => cat.category === selectedCategory
+      );
+      filteredTopProducts = filteredTopProducts.filter(
+        p => p.category === selectedCategory
+      );
+      filteredSlowMoving = filteredSlowMoving.filter(
+        p => p.category === selectedCategory
+      );
+    }
+
+    // Recalculate summary based on filters
+    let filteredSummary = { ...analyticsData.summary };
+    if (selectedCategory !== 'all' && filteredCategoryPerformance.length > 0) {
+      const catData = filteredCategoryPerformance[0];
+      filteredSummary = {
+        ...filteredSummary,
+        totalTransactions: catData.transactions,
+        totalUnitsSold: catData.totalUnits,
+        uniqueSKUs: catData.uniqueSKUs,
+        uniqueCategories: 1,
+        avgUnitsPerDay: Math.round(catData.totalUnits / Math.max(filteredSummary.dateRange?.days || 1, 1))
+      };
+    }
+    
+    if (selectedYear !== 'all' && filteredYoY[selectedYear]) {
+      filteredSummary = {
+        ...filteredSummary,
+        totalUnitsSold: filteredYoY[selectedYear].units,
+        uniqueSKUs: filteredYoY[selectedYear].skus
+      };
+    }
+
+    return {
+      ...analyticsData,
+      summary: filteredSummary,
+      monthlyTrends: filteredMonthlyTrends,
+      quarterlyTrends: filteredQuarterlyTrends,
+      categoryPerformance: filteredCategoryPerformance,
+      topProducts: filteredTopProducts,
+      slowMovingProducts: filteredSlowMoving,
+      yearOverYear: filteredYoY
+    };
+  };
+
+  // Get filtered data
+  const filteredData = getFilteredData();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-indigo-200 rounded-full animate-pulse"></div>
+            <RefreshCw className="w-8 h-8 text-indigo-600 absolute top-4 left-4 animate-spin" />
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Loading Inventory Analytics...</p>
+          <p className="text-sm text-gray-400 mt-1">Analyzing historical data</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-red-50">
+        <div className="text-center max-w-md p-8 bg-white rounded-2xl shadow-xl">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Analytics</h3>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 inline mr-2" />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Use filtered data for display (filtered by year/category)
+  const { summary, yearOverYear, monthlyTrends, categoryPerformance, seasonalAnalysis, 
+          genderBreakdown, topProducts, slowMovingProducts, insights, quarterlyTrends,
+          dayOfWeekPatterns, shopPerformance } = filteredData || {};
+  
+  // Check if filters are active
+  const hasActiveFilters = selectedYear !== 'all' || selectedCategory !== 'all';
+
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
         {/* Header */}
-        <header className="bg-white shadow-sm z-10">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <div className="flex items-center">
-              <Package className="w-6 h-6 mr-2 text-indigo-600" />
-              <h2 className="text-2xl font-bold text-gray-800">Inventory Analysis</h2>
-              <div className="ml-4 text-sm text-gray-500 flex items-center">
-                <Calendar className="w-4 h-4 mr-1" />
-                <span>{dateRange.start} to {dateRange.end}</span>
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-20">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  Sales & Inventory Analytics
+                </h1>
+                <p className="text-sm text-gray-500 flex items-center mt-0.5">
+                  <Calendar className="w-3.5 h-3.5 mr-1" />
+                  {summary?.dateRange?.start} to {summary?.dateRange?.end}
+                  <span className="mx-2">•</span>
+                  <span className="text-indigo-600 font-medium">{summary?.dateRange?.days || 0} days of data</span>
+                </p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="relative rounded-md shadow-sm hidden md:block">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                  placeholder="Search inventory..."
-                />
-              </div>
-
-              {/* Filter Button */}
+            <div className="flex items-center space-x-3">
               <button 
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all relative ${
+                  showFilterPanel || hasActiveFilters
+                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                <Filter className="h-4 w-4 mr-2" />
+                <Filter className="w-4 h-4 mr-2" />
                 Filters
-                <ChevronDown className="h-4 w-4 ml-1" />
+                {hasActiveFilters && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
+                    {(selectedYear !== 'all' ? 1 : 0) + (selectedCategory !== 'all' ? 1 : 0)}
+                  </span>
+                )}
+                <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${showFilterPanel ? 'rotate-180' : ''}`} />
               </button>
               
-              {/* Refresh Button */}
               <button 
-                onClick={handleDataRefresh}
-                className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={handleRefresh}
                 disabled={isLoading}
+                className="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
               
-              {/* Export Button */}
-              <button className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                <Download className="h-4 w-4 mr-2" />
-                Export
+              <button 
+                onClick={handleExport}
+                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export Report
               </button>
             </div>
           </div>
           
           {/* Filter Panel */}
           {showFilterPanel && (
-            <div className="p-4 bg-gray-50 border-b border-gray-200 grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Shop Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Shop</label>
-                <select
-                  value={selectedShop}
-                  onChange={(e) => setSelectedShop(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>{shop.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Category Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Timeframe Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Timeframe</label>
-                <select
-                  value={selectedTimeframe}
-                  onChange={(e) => setSelectedTimeframe(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  {timeframes.map((timeframe) => (
-                    <option key={timeframe.id} value={timeframe.id}>{timeframe.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Date Range */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-                <div className="flex space-x-2">
-                  <input
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-                    className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                  />
-                  <input
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-                    className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                  />
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 ${
+                      selectedYear !== 'all' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'
+                    }`}
+                  >
+                    <option value="all">All Years</option>
+                    {availableYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className={`w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 ${
+                      selectedCategory !== 'all' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'
+                    }`}
+                  >
+                    <option value="all">All Categories</option>
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  {hasActiveFilters && (
+                    <button
+                      onClick={() => {
+                        setSelectedYear('all');
+                        setSelectedCategory('all');
+                      }}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
                 </div>
               </div>
+              {hasActiveFilters && (
+                <div className="mt-3 flex items-center text-sm text-indigo-600">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <span>
+                    Showing data for: 
+                    {selectedYear !== 'all' && <span className="font-semibold ml-1">Year {selectedYear}</span>}
+                    {selectedYear !== 'all' && selectedCategory !== 'all' && <span className="mx-1">•</span>}
+                    {selectedCategory !== 'all' && <span className="font-semibold">{selectedCategory}</span>}
+                  </span>
+                </div>
+              )}
             </div>
           )}
+        </div>
         </header>
   
-        {/* Dashboard Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          {isLoading ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <RefreshCw className="w-12 h-12 mx-auto text-indigo-500 animate-spin" />
-                <p className="mt-2 text-gray-500">Loading inventory data...</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Key Metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <InventoryMetricCard 
-                  title="Total Inventory Value" 
-                  data={inventoryMetrics.totalValue} 
+      {/* Main Content */}
+      <main className="p-6 space-y-6">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <KPICard
+            title="Total Transactions"
+            value={summary?.totalTransactions?.toLocaleString() || '0'}
+            icon={ShoppingBag}
+            color="indigo"
+          />
+          <KPICard
+            title="Units Sold"
+            value={summary?.totalUnitsSold?.toLocaleString() || '0'}
                   icon={Package}
-                  accent="from-blue-400 to-blue-500" 
-                />
-                <InventoryMetricCard 
-                  title="Inventory Turnover" 
-                  data={inventoryMetrics.turnoverRate} 
-                  icon={TrendingUp}
-                  accent="from-green-400 to-green-500" 
-                />
-                <InventoryMetricCard 
-                  title="Stockouts" 
-                  data={inventoryMetrics.stockouts} 
-                  icon={AlertTriangle}
-                  accent="from-red-400 to-red-500" 
-                />
-                <InventoryMetricCard 
-                  title="Excess Stock" 
-                  data={inventoryMetrics.excessStock} 
-                  icon={TrendingDown}
-                  accent="from-amber-400 to-amber-500" 
-                />
-              </div>
-
-              {/* Category Distribution and ABC Analysis */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <CategoryDistributionCard 
-                  title="Inventory by Category" 
-                  data={categoryDistribution}
-                  colors={colors}
-                />
-                <ABCAnalysisCard 
-                  title="ABC Analysis" 
-                  data={abcAnalysis}
+            color="green"
+          />
+          <KPICard
+            title="Active SKUs"
+            value={summary?.uniqueSKUs?.toLocaleString() || '0'}
+            icon={Layers}
+            color="purple"
+          />
+          <KPICard
+            title="Products"
+            value={summary?.uniqueProducts?.toLocaleString() || '0'}
+            icon={Target}
+            color="blue"
+          />
+          <KPICard
+            title="Categories"
+            value={summary?.uniqueCategories || '0'}
+            icon={PieChartIcon}
+            color="pink"
+          />
+          <KPICard
+            title="Avg Units/Day"
+            value={summary?.avgUnitsPerDay?.toLocaleString() || '0'}
+            icon={Activity}
+            color="orange"
                 />
               </div>
 
-              {/* Inventory Trends Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <InventoryTrendChart 
-                  title="Stock Level Trends" 
-                  data={inventoryTrends} 
-                  type="area"
-                />
-                <InventoryTurnoverChart 
-                  title="Inventory Turnover Trends" 
-                  data={inventoryTrends} 
-                />
+        {/* Year-over-Year Comparison */}
+        {yearOverYear && Object.keys(yearOverYear).length > 1 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <TrendingUp className="w-5 h-5 mr-2 text-indigo-600" />
+              Year-over-Year Performance
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(yearOverYear).map(([year, data]) => (
+                <div key={year} className="p-4 bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl">
+                  <div className="text-2xl font-bold text-gray-900">{year}</div>
+                  <div className="text-lg font-semibold text-indigo-600 mt-1">
+                    {data.units?.toLocaleString()} units
+                  </div>
+                  {data.change !== null && (
+                    <div className={`flex items-center mt-2 text-sm font-medium ${
+                      data.change >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {data.change >= 0 ? (
+                        <ArrowUpRight className="w-4 h-4 mr-1" />
+                      ) : (
+                        <ArrowDownRight className="w-4 h-4 mr-1" />
+                      )}
+                      {Math.abs(data.change)}% vs previous
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 mt-1">{data.skus} SKUs active</div>
               </div>
+              ))}
+              </div>
+              </div>
+        )}
 
-              {/* Stock Aging and Movement */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <StockAgingChart 
-                  title="Stock Aging Analysis" 
-                  data={agingAnalysis}
-                  colors={colors}
-                />
-                <StockMovementChart 
-                  title="Stock Movement Analysis" 
-                  data={stockMovement}
-                />
-              </div>
-              
-              {/* Low Stock Alert Table */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-                      <AlertTriangle className="w-5 h-5 mr-2 text-amber-500" />
-                      Low Stock Alerts
+        {/* Insights & Recommendations */}
+        {insights && insights.length > 0 && (
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Lightbulb className="w-5 h-5 mr-2" />
+              AI Insights & Recommendations
                     </h3>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      {lowStockItems.filter(item => item.status === 'critical').length} Critical
-                    </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {insights.map((insight, idx) => (
+                <div key={idx} className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className={`p-2 rounded-lg ${
+                      insight.type === 'success' ? 'bg-green-500/20' :
+                      insight.type === 'warning' ? 'bg-yellow-500/20' :
+                      'bg-blue-500/20'
+                    }`}>
+                      {insight.type === 'success' ? <CheckCircle className="w-4 h-4" /> :
+                       insight.type === 'warning' ? <AlertTriangle className="w-4 h-4" /> :
+                       <Info className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm">{insight.title}</h4>
+                      <p className="text-sm text-white/80 mt-1">{insight.message}</p>
+                    </div>
                   </div>
                 </div>
-                <LowStockTable data={lowStockItems} />
-              </div>
-            </>
-          )}
-        </main>
-      </div>
+              ))}
     </div>
-  );
-}
-
-function InventoryMetricCard({ title, data, icon: Icon, accent }) {
-  const isPositive = data.trend === 'up';
-  const isBetter = (title === 'Stockouts' || title === 'Excess Stock') ? !isPositive : isPositive;
-
-  return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden transform transition hover:shadow-lg">
-      <div className={`h-1 bg-gradient-to-r ${accent}`}></div>
-      <div className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Icon className="w-6 h-6 text-gray-400 mr-2" />
-            <h3 className="text-gray-600 font-medium text-sm">{title}</h3>
           </div>
-          <span className={`text-sm font-semibold flex items-center ${isBetter ? 'text-green-600' : 'text-red-600'}`}>  
-            {isPositive ? (
-              <TrendingUp className="w-4 h-4 mr-1" />
+        )}
+
+        {/* Charts Row 1: Monthly Trends & Category Distribution */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Sales Trend */}
+          <CollapsibleSection
+            title="Monthly Sales Trend"
+            icon={<Activity className="w-5 h-5" />}
+            isExpanded={expandedSections.trends}
+            onToggle={() => toggleSection('trends')}
+          >
+            {monthlyTrends && monthlyTrends.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={processMonthlyData(monthlyTrends)}>
+                  <defs>
+                    <linearGradient id="colorUnits" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(value) => [value.toLocaleString(), 'Units']}
+                  />
+                  <Area type="monotone" dataKey="units" stroke={COLORS.primary} fill="url(#colorUnits)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="activeSKUs" stroke={COLORS.success} strokeWidth={2} dot={false} />
+                  <Legend />
+                </ComposedChart>
+              </ResponsiveContainer>
             ) : (
-              <TrendingDown className="w-4 h-4 mr-1" />
+              <EmptyState message="No monthly trend data available" />
             )}
-            {data.change}
-          </span>
-        </div>
-        <div className="mt-3">
-          <p className="text-3xl font-bold text-gray-900">{data.value}</p>
-          <p className="text-sm text-gray-500 mt-1">Previous: {data.previous}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+          </CollapsibleSection>
 
-function CategoryDistributionCard({ title, data, colors }) {
-  const totalStock = data.reduce((sum, item) => sum + item.stock, 0);
-
-  return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <h3 className="text-gray-700 font-medium mb-4">{title}</h3>
+          {/* Category Distribution */}
+          <CollapsibleSection
+            title="Category Performance"
+            icon={<PieChartIcon className="w-5 h-5" />}
+            isExpanded={expandedSections.categories}
+            onToggle={() => toggleSection('categories')}
+          >
+            {categoryPerformance && categoryPerformance.length > 0 ? (
         <div className="flex items-center">
-          <div className="w-40 h-40">
-            <ResponsiveContainer width="100%" height="100%">
+                <div className="w-1/2">
+                  <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie 
-                  data={data} 
-                  dataKey="value" 
-                  nameKey="name" 
+                        data={categoryPerformance.slice(0, 8)}
+                        dataKey="totalUnits"
+                        nameKey="category"
                   cx="50%" 
                   cy="50%" 
                   innerRadius={50} 
-                  outerRadius={70} 
+                        outerRadius={90}
                   paddingAngle={2}
                 >
-                  {data.map((entry, idx) => (
-                    <Cell key={idx} fill={colors[idx % colors.length]} />
+                        {categoryPerformance.slice(0, 8).map((entry, idx) => (
+                          <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+                      <Tooltip formatter={(value) => value.toLocaleString()} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="ml-6 flex-1">
-            {data.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between mb-3">
+                <div className="w-1/2 space-y-2 max-h-[250px] overflow-y-auto pr-2">
+                  {categoryPerformance.slice(0, 8).map((cat, idx) => (
+                    <div key={cat.category} className="flex items-center justify-between text-sm">
                 <div className="flex items-center">
-                  <span 
-                    className="w-3 h-3 mr-3 rounded-full" 
-                    style={{ backgroundColor: colors[idx % colors.length] }} 
-                  />
-                  <span className="text-sm font-medium text-gray-700">{item.name}</span>
+                        <div 
+                          className="w-3 h-3 rounded-full mr-2" 
+                          style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                        />
+                        <span className="text-gray-700 truncate max-w-[120px]">{cat.category}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-bold text-gray-900">{item.stock} units</span>
-                  <span className="block text-xs text-gray-500">{item.value}%</span>
+                        <span className="font-semibold text-gray-900">{cat.totalUnits.toLocaleString()}</span>
+                        <span className="text-gray-400 text-xs ml-1">({cat.marketShare}%)</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+            ) : (
+              <EmptyState message="No category data available" />
+            )}
+          </CollapsibleSection>
+        </div>
 
-function ABCAnalysisCard({ title, data }) {
+        {/* Charts Row 2: Quarterly & Seasonal */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quarterly Trends */}
+          {quarterlyTrends && quarterlyTrends.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <BarChart3 className="w-5 h-5 mr-2 text-purple-600" />
+                Quarterly Performance
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={quarterlyTrends}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis 
+                    dataKey={(d) => `${d.year} ${d.quarter}`} 
+                    tick={{ fontSize: 11 }} 
+                  />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(value) => [value.toLocaleString(), 'Units']}
+                  />
+                  <Bar dataKey="units" fill={COLORS.purple} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Seasonal Analysis */}
+          {seasonalAnalysis && seasonalAnalysis.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Clock className="w-5 h-5 mr-2 text-orange-600" />
+                Seasonal Distribution
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={seasonalAnalysis} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="season" type="category" width={100} tick={{ fontSize: 10 }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(value) => [value.toLocaleString(), 'Units']}
+                  />
+                  <Bar dataKey="totalUnits" fill={COLORS.orange} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+      </div>
+          )}
+    </div>
+
+        {/* Gender & Day of Week Analysis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Gender Breakdown */}
+          {genderBreakdown && genderBreakdown.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-pink-600" />
+                Gender Distribution
+              </h3>
+              <div className="flex items-center justify-around">
+                {genderBreakdown.map((g, idx) => {
+                  const total = genderBreakdown.reduce((sum, item) => sum + item.units, 0);
+                  const percentage = ((g.units / total) * 100).toFixed(1);
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <h3 className="text-gray-700 font-medium mb-4">{title}</h3>
-        <div className="space-y-4">
-          {data.map((item, idx) => (
-            <div key={idx} className="flex items-center">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">{item.category}</span>
-                  <span className="text-sm font-bold text-gray-900">{item.percentage}%</span>
+                    <div key={g.gender} className="text-center">
+                      <div 
+                        className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-3"
+                        style={{ backgroundColor: `${CHART_COLORS[idx]}20` }}
+                      >
+                        <span className="text-2xl font-bold" style={{ color: CHART_COLORS[idx] }}>
+                          {percentage}%
+                        </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="h-2 rounded-full" 
-                    style={{ 
-                      width: `${item.percentage}%`, 
-                      backgroundColor: item.color 
-                    }}
-                  ></div>
+                      <div className="font-semibold text-gray-900">{g.gender}</div>
+                      <div className="text-sm text-gray-500">{g.units.toLocaleString()} units</div>
                 </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-gray-500">{item.count} products</span>
-                  <span className="text-xs text-gray-500">Value contribution</span>
-                </div>
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+          )}
 
-function InventoryTrendChart({ title, data, type }) {
-  return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-gray-700 font-medium">{title}</h3>
-          <div className="flex space-x-2">
-            <button className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200">Details</button>
-            <button className="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">Optimize</button>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Area type="monotone" dataKey="stockLevel" stackId="1" stroke="#4F46E5" fill="#4F46E5" fillOpacity={0.3} />
-            <Bar dataKey="inbound" fill="#10B981" />
-            <Bar dataKey="outbound" fill="#EF4444" />
-            <Line type="monotone" dataKey="optimal" stroke="#F59E0B" strokeDasharray="5 5" dot={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function InventoryTurnoverChart({ title, data }) {
-  return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-gray-700 font-medium">{title}</h3>
-          <div className="flex space-x-2">
-            <button className="text-xs font-semibold bg-purple-100 text-purple-800 px-2 py-1 rounded hover:bg-purple-200">Analyze</button>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip formatter={(value) => [value.toFixed(2), 'Turnover Rate']} />
-            <Legend />
-            <defs>
-              <linearGradient id="colorTurnover" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="turnover" stroke="#8B5CF6" fill="url(#colorTurnover)" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function StockAgingChart({ title, data, colors }) {
-  return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <h3 className="text-gray-700 font-medium mb-4">{title}</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, left: 100, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="range" type="category" width={90} />
-            <Tooltip formatter={(value, name) => [`${value}%`, 'Stock Percentage']} />
-            <Bar dataKey="value" fill="#4F46E5" />
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="mt-4 space-y-2">
-          {data.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">{item.range}</span>
-              <span className="font-semibold text-gray-900">{item.amount}</span>
+          {/* Day of Week Pattern */}
+          {dayOfWeekPatterns && dayOfWeekPatterns.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Calendar className="w-5 h-5 mr-2 text-teal-600" />
+                Sales by Day of Week
+              </h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={dayOfWeekPatterns}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    formatter={(value) => [value.toLocaleString(), 'Units']}
+                  />
+                  <Bar dataKey="units" fill={COLORS.teal} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ))}
+          )}
         </div>
+
+        {/* Top & Slow Moving Products */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Products */}
+          <CollapsibleSection
+            title="Top Performing Products"
+            icon={<Award className="w-5 h-5" />}
+            isExpanded={expandedSections.products}
+            onToggle={() => toggleSection('products')}
+            badge={`Top ${topProducts?.length || 0}`}
+            badgeColor="green"
+          >
+            {topProducts && topProducts.length > 0 ? (
+              <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+                {topProducts.slice(0, 10).map((product, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                        idx < 3 ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {product.rank}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 text-sm">{product.productName}</div>
+                        <div className="text-xs text-gray-500">{product.category} • {product.skuCount} SKUs</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-indigo-600">{product.totalUnits.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">units</div>
       </div>
+    </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No product data available" />
+            )}
+          </CollapsibleSection>
+
+          {/* Slow Moving Products */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2 text-amber-600" />
+                Slow-Moving Products
+              </h3>
+              <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium">
+                Bottom 10%
+              </span>
+            </div>
+            {slowMovingProducts && slowMovingProducts.length > 0 ? (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                {slowMovingProducts.slice(0, 10).map((product, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">{product.productName}</div>
+                      <div className="text-xs text-gray-500">{product.category}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-amber-600">{product.totalUnits}</div>
+                      <div className="text-xs text-gray-500">units</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No slow-moving products identified" />
+            )}
+            <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+              <p className="text-xs text-amber-800">
+                <Lightbulb className="w-3 h-3 inline mr-1" />
+                <strong>Recommendation:</strong> Consider promotional pricing or bundling strategies for these items.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Category Details Table */}
+        {categoryPerformance && categoryPerformance.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Layers className="w-5 h-5 mr-2 text-indigo-600" />
+                Detailed Category Analysis
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Units</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Transactions</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">SKUs</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Market Share</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Velocity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {categoryPerformance.map((cat, idx) => (
+                    <tr key={cat.category} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <div 
+                            className="w-3 h-3 rounded-full mr-3" 
+                            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                          />
+                          <span className="font-medium text-gray-900">{cat.category}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold text-gray-900">
+                        {cat.totalUnits.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-right text-gray-600">
+                        {cat.transactions.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-right text-gray-600">
+                        {cat.uniqueSKUs}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">
+                          {cat.marketShare}%
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={`font-medium ${cat.velocity > 50 ? 'text-green-600' : cat.velocity > 20 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {cat.velocity}
+                        </span>
+                        <span className="text-gray-400 text-xs ml-1">units/SKU</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="text-center py-6 text-sm text-gray-500">
+          <p>Data refreshed from training sales data • {summary?.totalTransactions?.toLocaleString()} transactions analyzed</p>
+      </div>
+      </main>
     </div>
   );
 }
 
-function StockMovementChart({ title, data }) {
+// Helper Components
+function KPICard({ title, value, icon: Icon, color, change }) {
+  const colorClasses = {
+    indigo: 'from-indigo-500 to-indigo-600',
+    green: 'from-emerald-500 to-emerald-600',
+    purple: 'from-purple-500 to-purple-600',
+    blue: 'from-blue-500 to-blue-600',
+    pink: 'from-pink-500 to-pink-600',
+    orange: 'from-orange-500 to-orange-600',
+    red: 'from-red-500 to-red-600',
+    teal: 'from-teal-500 to-teal-600'
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-6">
-        <h3 className="text-gray-700 font-medium mb-4">{title}</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 100 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="product" angle={-45} textAnchor="end" height={100} />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="inbound" stackId="a" fill="#10B981" />
-            <Bar dataKey="outbound" stackId="b" fill="#EF4444" />
-            <Line type="monotone" dataKey="net" stroke="#4F46E5" strokeWidth={3} dot={{ r: 4 }} />
-          </BarChart>
-        </ResponsiveContainer>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-2">
+        <div className={`p-2 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        {change && (
+          <span className={`text-xs font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {change >= 0 ? '+' : ''}{change}%
+          </span>
+        )}
       </div>
+      <div className="text-2xl font-bold text-gray-900">{value}</div>
+      <div className="text-xs text-gray-500 mt-1">{title}</div>
     </div>
   );
 }
 
-function LowStockTable({ data }) {
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reorder Level</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((item) => (
-              <tr key={item.sku} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{item.sku}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-medium">{item.current}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{item.reorder}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{item.category}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    item.status === 'critical' 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {item.status === 'critical' ? 'Critical' : 'Warning'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button className="text-indigo-600 hover:text-indigo-900 mr-3">Reorder</button>
-                  <button className="text-gray-600 hover:text-gray-900">Details</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
+function CollapsibleSection({ title, icon, isExpanded, onToggle, children, badge, badgeColor = 'blue' }) {
+  const badgeColors = {
+    blue: 'bg-blue-100 text-blue-800',
+    green: 'bg-green-100 text-green-800',
+    amber: 'bg-amber-100 text-amber-800'
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center space-x-3">
+          <div className="text-indigo-600">{icon}</div>
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          {badge && (
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badgeColors[badgeColor]}`}>
+              {badge}
+            </span>
+          )}
+            </div>
+        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+      </button>
+      {isExpanded && (
+        <div className="px-6 pb-6">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ message }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+      <Package className="w-12 h-12 mb-3 opacity-50" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+// Helper function to process monthly data
+function processMonthlyData(monthlyTrends) {
+  // Group by year-month and create readable labels
+  const processed = monthlyTrends.map(item => ({
+    ...item,
+    label: `${item.monthName} ${String(item.year).slice(2)}`
+  }));
+  
+  // Sort by year and month
+  return processed.sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.month - b.month;
+  });
   }
   

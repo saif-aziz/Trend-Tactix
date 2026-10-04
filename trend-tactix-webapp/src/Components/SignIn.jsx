@@ -16,14 +16,16 @@ const Signin = ({ onSignIn }) => {
     setLoading(true);
     setError('');
 
-    // Simple hardcoded authentication
-    if (credentials.username === 'saif' && credentials.password === '12345') {
-      setTimeout(() => {
-        onSignIn();
-        setLoading(false);
-      }, 1000); // Simulate loading
-    } else {
-      setError('Invalid username or password');
+    try {
+      // Call the real authentication API
+      const result = await onSignIn(credentials.username, credentials.password);
+      
+      if (!result.success) {
+        setError(result.message || 'Invalid username or password');
+      }
+    } catch (err) {
+      setError('Failed to connect to server. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -133,18 +135,18 @@ const Signin = ({ onSignIn }) => {
               </div>
             )}
 
-            {/* Demo Credentials Box */}
-            {/* <div className="bg-indigo-700/20 border border-indigo-600/30 rounded-lg p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-indigo-100 font-medium mb-2">Demo Credentials:</p>
+            {/* Default Admin Credentials Box */}
+            <div className="bg-indigo-700/20 border border-indigo-600/30 rounded-lg p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-indigo-100 font-medium mb-2">Default Admin Login:</p>
               <div className="space-y-1">
                 <p className="text-xs text-indigo-200">
-                  Username: <span className="font-mono bg-white/10 px-2 py-1 rounded">saif</span>
+                  Username: <span className="font-mono bg-white/10 px-2 py-1 rounded">admin</span>
                 </p>
                 <p className="text-xs text-indigo-200">
-                  Password: <span className="font-mono bg-white/10 px-2 py-1 rounded">12345</span>
+                  Password: <span className="font-mono bg-white/10 px-2 py-1 rounded">admin123</span>
                 </p>
               </div>
-            </div> */}
+            </div>
 
             {/* Submit Button */}
             <button
